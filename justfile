@@ -45,8 +45,8 @@ lint:
 branch name:
     git checkout -b {{name}}
 
-# Create a new tag
+# Create a new tag and push it to trigger release workflow
 tag version:
     git tag -a {{version}} -m "Release {{version}}"
-    @echo "Created tag: {{version}}"
-    @echo "Run 'git push origin {{version}}' to trigger the release workflow"
+    git push origin {{version}}
+    @echo "Tag {{version}} created and pushed. GitHub release workflow triggered automatically."
