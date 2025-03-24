@@ -104,3 +104,60 @@ func TestValidateAndCalculate(t *testing.T) {
 		}
 	}
 }
+
+func TestAdvancedViewportScrolling(t *testing.T) {
+	// Create a new app model
+	model := NewAppModel()
+	
+	// Set window height smaller than the full content
+	model.windowSize.Height = 30
+	model.windowSize.Width = 100
+	
+	// Switch to advanced view
+	model.step = AdvancedInputStep
+	
+	// Set the viewport height based on window size
+	model.advancedViewport.Height = model.windowSize.Height - 8
+	
+	// Test different focus fields to ensure scrolling works
+	testCases := []struct {
+		name       string
+		focusField Field
+		wantScroll bool
+	}{
+		{"Focus on first field", AJAHR_Field, false},
+		{"Focus on middle field", ZKF_Field, true},
+		{"Focus on last field", PVA_Field, true},
+	}
+	
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Set initial scroll position to top
+			model.advancedViewport.SetYOffset(0)
+			
+			// Render the form with the model as pointer
+			// This should update the viewport's content and scroll position
+			content := model.renderAdvancedInputForm()
+			
+			// Focus on the test field and scroll to it
+			prevField := model.focusField
+			model.focusField = tc.focusField
+			model.scrollToAdvancedField(prevField, tc.focusField)
+			
+			// Verify scrolling behavior
+			if tc.wantScroll && model.advancedViewport.YOffset == 0 {
+				t.Errorf("Expected viewport to scroll for field %v, but it remained at the top", tc.focusField)
+			}
+			
+			if !tc.wantScroll && model.advancedViewport.YOffset > 0 {
+				t.Errorf("Expected viewport to remain at the top for field %v, but it scrolled to %d", 
+					tc.focusField, model.advancedViewport.YOffset)
+			}
+			
+			// Make sure content is not empty
+			if content == "" {
+				t.Error("Rendered content is empty")
+			}
+		})
+	}
+}

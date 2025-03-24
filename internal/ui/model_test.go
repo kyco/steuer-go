@@ -64,9 +64,9 @@ func TestModelUpdate(t *testing.T) {
 	
 	// Test window size update
 	newModel, _ := model.Update(tea.WindowSizeMsg{Width: 120, Height: 50})
-	m, ok := newModel.(AppModel)
+	m, ok := newModel.(*AppModel)
 	if !ok {
-		t.Fatalf("Expected AppModel after update, got %T", newModel)
+		t.Fatalf("Expected *AppModel after update, got %T", newModel)
 	}
 	
 	if m.windowSize.Width != 120 || m.windowSize.Height != 50 {
@@ -76,9 +76,9 @@ func TestModelUpdate(t *testing.T) {
 	// Test tab key navigation
 	model = NewAppModel()
 	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyTab})
-	m, ok = newModel.(AppModel)
+	m, ok = newModel.(*AppModel)
 	if !ok {
-		t.Fatalf("Expected AppModel after update, got %T", newModel)
+		t.Fatalf("Expected *AppModel after update, got %T", newModel)
 	}
 	
 	if m.focusField != IncomeField {
@@ -89,9 +89,9 @@ func TestModelUpdate(t *testing.T) {
 	model = NewAppModel()
 	model.focusField = IncomeField
 	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyShiftTab})
-	m, ok = newModel.(AppModel)
+	m, ok = newModel.(*AppModel)
 	if !ok {
-		t.Fatalf("Expected AppModel after update, got %T", newModel)
+		t.Fatalf("Expected *AppModel after update, got %T", newModel)
 	}
 	
 	if m.focusField != TaxClassField {
@@ -102,9 +102,9 @@ func TestModelUpdate(t *testing.T) {
 	model = NewAppModel()
 	model.selectedTaxClass = 3
 	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyUp})
-	m, ok = newModel.(AppModel)
+	m, ok = newModel.(*AppModel)
 	if !ok {
-		t.Fatalf("Expected AppModel after update, got %T", newModel)
+		t.Fatalf("Expected *AppModel after update, got %T", newModel)
 	}
 	
 	if m.selectedTaxClass != 2 {
@@ -113,9 +113,9 @@ func TestModelUpdate(t *testing.T) {
 	
 	model.selectedTaxClass = 3
 	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
-	m, ok = newModel.(AppModel)
+	m, ok = newModel.(*AppModel)
 	if !ok {
-		t.Fatalf("Expected AppModel after update, got %T", newModel)
+		t.Fatalf("Expected *AppModel after update, got %T", newModel)
 	}
 	
 	if m.selectedTaxClass != 4 {
@@ -130,9 +130,9 @@ func TestModelUpdate(t *testing.T) {
 	// Test debug message handling
 	model = NewAppModel()
 	newModel, _ = model.Update(DebugLogMsg{Message: "Test debug message"})
-	m, ok = newModel.(AppModel)
+	m, ok = newModel.(*AppModel)
 	if !ok {
-		t.Fatalf("Expected AppModel after update, got %T", newModel)
+		t.Fatalf("Expected *AppModel after update, got %T", newModel)
 	}
 	
 	if len(m.debugMessages) != 1 || m.debugMessages[0] != "Test debug message" {
