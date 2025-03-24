@@ -21,8 +21,11 @@ jobs:
       - name: Build binary for Linux
         run: GOOS=linux GOARCH=amd64 go build -o tax-calculator-linux-amd64 ./cmd/tax-calculator/
 
-      - name: Build binary for macOS
+      - name: Build binary for macOS (Intel)
         run: GOOS=darwin GOARCH=amd64 go build -o tax-calculator-darwin-amd64 ./cmd/tax-calculator/
+        
+      - name: Build binary for macOS (ARM)
+        run: GOOS=darwin GOARCH=arm64 go build -o tax-calculator-darwin-arm64 ./cmd/tax-calculator/
 
       - name: Build binary for Windows
         run: GOOS=windows GOARCH=amd64 go build -o tax-calculator-windows-amd64.exe ./cmd/tax-calculator/
@@ -38,6 +41,7 @@ jobs:
           files: |
             tax-calculator-linux-amd64
             tax-calculator-darwin-amd64
+            tax-calculator-darwin-arm64
             tax-calculator-windows-amd64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

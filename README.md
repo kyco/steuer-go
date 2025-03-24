@@ -27,6 +27,14 @@ With its clean, minimalist terminal interface (powered by Bubble Tea), SteuerGo 
 
 ## Installation
 
+### One-line installation
+
+```bash
+curl -sSL https://raw.githubusercontent.com/kyco/steuer-go/main/install.sh | bash
+```
+
+This will download the latest release binary for your platform and install it to `/usr/local/bin/steuergo`.
+
 ### From source
 
 ```bash
