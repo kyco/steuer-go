@@ -31,7 +31,7 @@ With its clean, minimalist terminal interface (powered by Bubble Tea), SteuerGo 
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/steuergo.git
+git clone https://github.com/kyco/steuer-go.git
 cd steuergo
 
 # Build the application
@@ -44,7 +44,7 @@ go build -o steuergo cmd/tax-calculator/main.go
 ### Using Go
 
 ```bash
-go install github.com/yourusername/steuergo@latest
+go install github.com/kyco/steuer-go@latest
 ```
 
 ## Usage
