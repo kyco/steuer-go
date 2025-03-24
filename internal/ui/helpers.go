@@ -70,53 +70,6 @@ func (m *AppModel) updateResultsContent() {
 	netIncome := income - totalTax
 	taxPercentage := (totalTax / income) * 100
 	
-	if len(m.debugMessages) > 0 {
-		debugTitle := lipgloss.NewStyle().
-			Foreground(styles.WarningColor).
-			Bold(true).
-			Render("Debug Messages:")
-		fmt.Fprintf(&content, "%s\n", debugTitle)
-		
-		startIdx := 0
-		if len(m.debugMessages) > 20 {
-			startIdx = len(m.debugMessages) - 20
-		}
-		
-		if startIdx > 0 {
-			hiddenMsg := fmt.Sprintf("(Showing last 20 of %d messages)", len(m.debugMessages))
-			fmt.Fprintf(&content, "%s\n", 
-				lipgloss.NewStyle().
-					Foreground(styles.NeutralColor).
-					Italic(true).
-					Render(hiddenMsg))
-		}
-		
-		for i := startIdx; i < len(m.debugMessages); i++ {
-			msg := m.debugMessages[i]
-			
-			style := lipgloss.NewStyle().Foreground(styles.WarningColor)
-			
-			if strings.Contains(msg, "✓ Success") {
-				style = lipgloss.NewStyle().Foreground(styles.SuccessColor)
-			}
-			
-			if strings.Contains(msg, "✗ Failed") {
-				style = lipgloss.NewStyle().Foreground(styles.DangerColor)
-			}
-			
-			if strings.Contains(msg, "Completed") {
-				style = lipgloss.NewStyle().Foreground(styles.NeutralColor)
-			}
-			
-			fmt.Fprintf(&content, "%s\n", style.Render(msg))
-		}
-		
-		fmt.Fprintf(&content, "%s\n\n", 
-			lipgloss.NewStyle().
-				Foreground(styles.WarningColor).
-				Render(strings.Repeat("─", 60)))
-	}
-	
 	title := lipgloss.NewStyle().
 		Foreground(styles.PrimaryColor).
 		Bold(true).
@@ -229,53 +182,6 @@ func (m *AppModel) updateComparisonContent() {
 		Bold(true).
 		Render("Income and Tax Comparison")
 	fmt.Fprintf(&content, "%s\n\n", title)
-	
-	if len(m.debugMessages) > 0 {
-		debugTitle := lipgloss.NewStyle().
-			Foreground(styles.WarningColor).
-			Bold(true).
-			Render("Debug Messages:")
-		fmt.Fprintf(&content, "%s\n", debugTitle)
-		
-		startIdx := 0
-		if len(m.debugMessages) > 20 {
-			startIdx = len(m.debugMessages) - 20
-		}
-		
-		if startIdx > 0 {
-			hiddenMsg := fmt.Sprintf("(Showing last 20 of %d messages)", len(m.debugMessages))
-			fmt.Fprintf(&content, "%s\n", 
-				lipgloss.NewStyle().
-					Foreground(styles.NeutralColor).
-					Italic(true).
-					Render(hiddenMsg))
-		}
-		
-		for i := startIdx; i < len(m.debugMessages); i++ {
-			msg := m.debugMessages[i]
-			
-			style := lipgloss.NewStyle().Foreground(styles.WarningColor)
-			
-			if strings.Contains(msg, "✓ Success") {
-				style = lipgloss.NewStyle().Foreground(styles.SuccessColor)
-			}
-			
-			if strings.Contains(msg, "✗ Failed") {
-				style = lipgloss.NewStyle().Foreground(styles.DangerColor)
-			}
-			
-			if strings.Contains(msg, "Completed") {
-				style = lipgloss.NewStyle().Foreground(styles.NeutralColor)
-			}
-			
-			fmt.Fprintf(&content, "%s\n", style.Render(msg))
-		}
-		
-		fmt.Fprintf(&content, "%s\n\n", 
-			lipgloss.NewStyle().
-				Foreground(styles.WarningColor).
-				Render(strings.Repeat("─", 60)))
-	}
 	
 	originalIncome, _ := strconv.ParseFloat(m.incomeInput.Value(), 64)
 	

@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	
+
 	"tax-calculator/internal/adapters/api"
 	"tax-calculator/internal/domain/models"
 	"tax-calculator/internal/ui/styles"
@@ -37,28 +37,28 @@ type TaxClassOption struct {
 type AppModel struct {
 	step       Step
 	focusField Field
-	
-	taxClassOptions []TaxClassOption
+
+	taxClassOptions  []TaxClassOption
 	selectedTaxClass int
-	incomeInput     textinput.Model
-	yearInput       textinput.Model
-	
-	resultsLoading bool
-	resultsError   string
-	result         *api.TaxCalculationResponse
+	incomeInput      textinput.Model
+	yearInput        textinput.Model
+
+	resultsLoading  bool
+	resultsError    string
+	result          *api.TaxCalculationResponse
 	resultsViewport viewport.Model
 	showDetails     bool
 	debugMessages   []string
-	
-	comparisonLoading bool
-	comparisonError   string
-	comparisonResults []models.TaxResult
+
+	comparisonLoading  bool
+	comparisonError    string
+	comparisonResults  []models.TaxResult
 	comparisonViewport viewport.Model
 	completedCalls     int
 	totalCalls         int
-	
-	spinner     spinner.Model
-	windowSize  tea.WindowSizeMsg
+
+	spinner    spinner.Model
+	windowSize tea.WindowSizeMsg
 }
 
 func NewAppModel() AppModel {
@@ -77,7 +77,7 @@ func NewAppModel() AppModel {
 	incomeInput.CharLimit = 10
 	incomeInput.Prompt = "€ "
 	incomeInput.TextStyle = lipgloss.NewStyle().Foreground(styles.FgColor)
-	
+
 	yearInput := textinput.New()
 	yearInput.Placeholder = "2025"
 	yearInput.Width = 6
@@ -91,7 +91,7 @@ func NewAppModel() AppModel {
 
 	vp := viewport.New(100, 40)
 	vp.Style = styles.ResultsBoxStyle
-	
+
 	compVp := viewport.New(100, 40)
 	compVp.Style = styles.ResultsBoxStyle
 
@@ -107,6 +107,7 @@ func NewAppModel() AppModel {
 		comparisonViewport: compVp,
 		completedCalls:     0,
 		totalCalls:         0,
-		debugMessages:      []string{}
+		debugMessages:      []string{},
 	}
 }
+
