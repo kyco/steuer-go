@@ -2,6 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.18-blue)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/kyco/steuer-go)
 
 A beautiful terminal-based German tax calculator using the official BMF (Bundesministerium der Finanzen) API.
 
@@ -33,14 +34,14 @@ With its clean, minimalist terminal interface (powered by Bubble Tea), SteuerGo 
 curl -sSL https://raw.githubusercontent.com/kyco/steuer-go/main/install.sh | bash
 ```
 
-This will download the latest release binary for your platform and install it to `/usr/local/bin/steuergo`.
+This will download the latest release binary for your platform and install it to `/usr/local/bin/steuergo`. The script supports macOS (Intel and ARM), Linux, and Windows.
 
 ### From source
 
 ```bash
 # Clone the repository
 git clone https://github.com/kyco/steuer-go.git
-cd steuergo
+cd steuer-go
 
 # Build the application
 go build -o steuergo cmd/tax-calculator/main.go
@@ -52,12 +53,24 @@ go build -o steuergo cmd/tax-calculator/main.go
 ### Using Go
 
 ```bash
-go install github.com/kyco/steuer-go@latest
+go install github.com/kyco/steuer-go/cmd/tax-calculator@latest
+```
+
+After installation, the application will be available as `tax-calculator`. You can rename it to `steuergo` if you prefer:
+
+```bash
+mv $(which tax-calculator) $(dirname $(which tax-calculator))/steuergo
 ```
 
 ## Usage
 
-Simply run the application and follow the on-screen instructions:
+After installation, run the application by typing `steuergo` in your terminal:
+
+```bash
+steuergo
+```
+
+Follow the on-screen instructions:
 
 1. Select your tax class using the arrow keys
 2. Enter your annual income
