@@ -4,6 +4,7 @@
 *.so
 *.dylib
 tax-calculator
+steuergo
 
 *.test
 
