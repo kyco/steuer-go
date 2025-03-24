@@ -6,21 +6,15 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Init initializes the model
 func (m AppModel) Init() tea.Cmd {
-	// We'll use a simpler approach - we'll modify the API function to directly
-	// send messages to the program instead of trying to capture stdout
-	
 	return textinput.Blink
 }
 
-// Update handles events and updates the model
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case DebugLogMsg:
-		// Add debug message to our list
 		m.debugMessages = append(m.debugMessages, msg.Message)
 		if m.step == ResultsStep {
 			m.updateResultsContent()
@@ -45,7 +39,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 				
 			case "tab", "shift+tab":
-				// Cycle through input fields
 				if msg.String() == "tab" {
 					m.focusField = (m.focusField + 1) % 4
 				} else {
@@ -55,7 +48,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				
 			case "up", "down":
 				if m.focusField == TaxClassField {
-					// Navigate through tax class options
 					if msg.String() == "up" {
 						m.selectedTaxClass = max(1, m.selectedTaxClass-1)
 					} else {
@@ -67,7 +59,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.focusField == CalculateButtonField {
 					valid, errMsg := m.validateAndCalculate()
 					if valid {
-						// Start calculation
 						m.step = ResultsStep
 						m.resultsLoading = true
 						
@@ -78,7 +69,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.resultsError = errMsg
 					}
 				} else {
-					// Move to next field
 					m.focusField = (m.focusField + 1) % 4
 					m.updateFocus()
 				}
@@ -87,19 +77,16 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case ResultsStep:
 			switch msg.String() {
 			case "esc", "q", "b":
-				// Return to input form
 				m.step = InputStep
 				m.resultsLoading = false
 				m.resultsError = ""
 				return m, nil
 				
 			case "d":
-				// Toggle details
 				m.showDetails = !m.showDetails
 				m.updateResultsContent()
 			
 			case "c":
-				// Switch to comparison view
 				m.step = ComparisonStep
 				m.comparisonLoading = true
 				m.comparisonResults = nil
@@ -116,7 +103,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case ComparisonStep:
 			switch msg.String() {
 			case "esc", "q", "b":
-				// Return to regular results view
 				m.step = ResultsStep
 				return m, nil
 				
@@ -138,16 +124,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		
 	case ComparisonStartedMsg:
-		// Show loading state while we calculate
 		m.comparisonLoading = true
-		// Reset variables
 		m.totalCalls = 0
 		m.completedCalls = 0
-		// Clear any old results
 		m.comparisonResults = nil
-		// Clear any old debug messages
 		m.debugMessages = []string{}
-		// Fetch tax comparison
 		cmds = append(cmds, FetchComparisonCmd(m.selectedTaxClass, parseIncome(m.incomeInput.Value())))
 		
 	case ComparisonProgressMsg:
@@ -160,7 +141,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.comparisonError = msg.Error.Error()
 		} else {
 			m.comparisonResults = msg.Results
-			// Only update content if we actually have results
 			if len(msg.Results) > 0 {
 				m.updateComparisonContent()
 			}
@@ -174,7 +154,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Handle input updates
 	if m.step == InputStep {
 		switch m.focusField {
 		case IncomeField:
@@ -199,7 +178,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// View renders the model
 func (m AppModel) View() string {
 	switch m.step {
 	case InputStep:

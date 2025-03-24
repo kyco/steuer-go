@@ -1,26 +1,21 @@
-# Binaries for programs and plugins
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+tax-calculator
 
-# Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool
 *.out
 
-# Go workspace file
 go.work
 
-# IDE files
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# OS generated files
 .DS_Store
 .DS_Store?
 ._*
@@ -29,9 +24,7 @@ go.work
 ehthumbs.db
 Thumbs.db
 
-# Dependency directories
 vendor/
 
-# Build artifacts
 bin/
 dist/

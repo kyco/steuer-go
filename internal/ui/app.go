@@ -4,7 +4,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Start starts the application
 func Start() error {
 	p := tea.NewProgram(
 		NewAppModel(),

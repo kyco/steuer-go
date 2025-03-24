@@ -9,15 +9,11 @@ import (
 	"tax-calculator/internal/ui/styles"
 )
 
-// renderInputForm renders the unified input form
 func (m AppModel) renderInputForm() string {
-	// Header
 	header := styles.HeaderStyle.Render("German Tax Calculator")
 	
-	// Tax class selection
 	taxClassTitle := styles.SubtitleStyle.Render("Tax Class:")
 	
-	// Create tax class dropdown
 	var taxClassOptions strings.Builder
 	for i, option := range m.taxClassOptions {
 		classNum := option.Class
@@ -40,33 +36,28 @@ func (m AppModel) renderInputForm() string {
 			indicator,
 			style.Render(fmt.Sprintf("Class %d: %s", classNum, option.Desc)))
 		
-		// Only show 3 options at a time, centered on the selected one
 		if i >= 2 && classNum != m.selectedTaxClass && classNum != m.selectedTaxClass+1 {
 			continue
 		}
 	}
 	
-	// Income input
 	incomeTitle := styles.SubtitleStyle.Render("Annual Income:")
 	incomeField := styles.InputFieldStyle.Render(m.incomeInput.View())
 	if m.focusField == IncomeField {
 		incomeField = styles.ActiveInputStyle.Render(m.incomeInput.View())
 	}
 	
-	// Year input
 	yearTitle := styles.SubtitleStyle.Render("Tax Year:")
 	yearField := styles.InputFieldStyle.Render(m.yearInput.View())
 	if m.focusField == YearField {
 		yearField = styles.ActiveInputStyle.Render(m.yearInput.View())
 	}
 	
-	// Calculate button
 	calculateButton := styles.ButtonStyle.Render(" Calculate ")
 	if m.focusField == CalculateButtonField {
 		calculateButton = styles.SelectedButtonStyle.Render(" Calculate ")
 	}
 	
-	// Error message
 	errorMsg := ""
 	if m.resultsError != "" {
 		errorMsg = lipgloss.NewStyle().
@@ -74,10 +65,8 @@ func (m AppModel) renderInputForm() string {
 			Render(m.resultsError)
 	}
 	
-	// Help text
 	helpText := styles.HelpStyle.Render("Tab: Next Field • Enter: Select/Calculate • ↑/↓: Navigate Tax Class • Esc: Quit")
 	
-	// Build the form content
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		"",
@@ -95,10 +84,9 @@ func (m AppModel) renderInputForm() string {
 		errorMsg,
 	)
 	
-	// Center the form in the available space
 	formWidth := m.windowSize.Width
 	if formWidth == 0 {
-		formWidth = 100 // Default width if window size not yet known
+		formWidth = 100
 	}
 	
 	centeredForm := lipgloss.NewStyle().
@@ -118,14 +106,12 @@ func (m AppModel) renderInputForm() string {
 	)
 }
 
-// renderResults renders the calculation results
 func (m AppModel) renderResults() string {
 	header := styles.HeaderStyle.Render("German Tax Calculator - Results")
 	
 	if m.resultsLoading {
 		spinner := m.spinner.View()
 		
-		// Get width for centering
 		width := m.windowSize.Width
 		if width == 0 {
 			width = 100
@@ -168,7 +154,6 @@ func (m AppModel) renderResults() string {
 	
 	helpText := styles.HelpStyle.Render("d: Toggle Details • c: Compare Tax Rates • ↑/↓: Scroll • b: Back • Esc: Quit")
 	
-	// Get width for centering
 	width := m.windowSize.Width
 	if width == 0 {
 		width = 100
@@ -188,18 +173,15 @@ func (m AppModel) renderResults() string {
 	)
 }
 
-// renderComparison renders the comparison view
 func (m AppModel) renderComparison() string {
 	header := styles.HeaderStyle.Render("German Tax Calculator - Income Comparison")
 	
 	if m.comparisonLoading {
-		// Get width for centering
 		width := m.windowSize.Width
 		if width == 0 {
 			width = 100
 		}
 		
-		// Ultra simplified message with no progress indication
 		loadingContent := lipgloss.JoinVertical(
 			lipgloss.Center,
 			"",
@@ -237,7 +219,6 @@ func (m AppModel) renderComparison() string {
 	
 	helpText := styles.HelpStyle.Render("↑/↓: Scroll • b: Back to Results • Esc: Quit")
 	
-	// Get width for centering
 	width := m.windowSize.Width
 	if width == 0 {
 		width = 100

@@ -1,6 +1,5 @@
 package models
 
-// TaxClass (Steuerklasse) - German tax classes
 type TaxClass int
 
 const (
@@ -12,7 +11,6 @@ const (
 	TaxClass6 TaxClass = 6
 )
 
-// PaymentPeriod (Lohnzahlungszeitraum - LZZ)
 type PaymentPeriod int
 
 const (
@@ -22,14 +20,12 @@ const (
 	Day    PaymentPeriod = 4
 )
 
-// TaxRequest represents a request to calculate tax
 type TaxRequest struct {
-	Period   PaymentPeriod // LZZ
-	Income   int           // RE4 (in cents)
-	TaxClass TaxClass      // STKL
+	Period   PaymentPeriod
+	Income   int
+	TaxClass TaxClass
 }
 
-// TaxResult contains summarized tax calculation results
 type TaxResult struct {
 	Income        float64
 	IncomeTax     float64
