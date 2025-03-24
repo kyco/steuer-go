@@ -44,3 +44,9 @@ lint:
 # Create new branch
 branch name:
     git checkout -b {{name}}
+
+# Create a new tag
+tag version:
+    git tag -a {{version}} -m "Release {{version}}"
+    @echo "Created tag: {{version}}"
+    @echo "Run 'git push origin {{version}}' to trigger the release workflow"
