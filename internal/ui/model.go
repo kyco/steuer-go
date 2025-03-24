@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -78,11 +81,12 @@ func NewAppModel() AppModel {
 	incomeInput.Prompt = "€ "
 	incomeInput.TextStyle = lipgloss.NewStyle().Foreground(styles.FgColor)
 
+	currentYear := time.Now().Year()
 	yearInput := textinput.New()
-	yearInput.Placeholder = "2025"
+	yearInput.Placeholder = fmt.Sprintf("%d", currentYear)
 	yearInput.Width = 6
 	yearInput.CharLimit = 4
-	yearInput.SetValue("2025")
+	yearInput.SetValue(fmt.Sprintf("%d", currentYear))
 	yearInput.TextStyle = lipgloss.NewStyle().Foreground(styles.FgColor)
 
 	s := spinner.New()
@@ -110,4 +114,3 @@ func NewAppModel() AppModel {
 		debugMessages:      []string{},
 	}
 }
-
