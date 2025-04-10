@@ -4,11 +4,11 @@
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.18-blue)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/kyco/steuer-go)
 
-A beautiful terminal-based German tax calculator using the official BMF (Bundesministerium der Finanzen) API.
+A beautiful terminal-based German tax calculator using the official BMF (Bundesministerium der Finanzen) API, with support for offline calculation.
 
 ## Overview
 
-SteuerGo is a terminal application written in Go that helps users calculate their German income tax obligations. It uses the official BMF (Federal Ministry of Finance) API to ensure accurate tax calculations based on current German tax laws.
+SteuerGo is a terminal application written in Go that helps users calculate their German income tax obligations. It primarily uses the official BMF (Federal Ministry of Finance) API to ensure accurate tax calculations based on current German tax laws, but also provides a local calculation option that implements the official tax formulas for offline use.
 
 With its clean, minimalist terminal interface (powered by Bubble Tea), SteuerGo makes it easy to:
 
@@ -23,8 +23,10 @@ With its clean, minimalist terminal interface (powered by Bubble Tea), SteuerGo 
 - 🔢 Support for all German tax classes (1-6)
 - 📊 Visual breakdown of tax calculations
 - 🔄 Real-time calculations via the official BMF API
+- 🧮 Offline calculation mode with local implementation of tax formula
 - 📝 Detailed tax information on demand
 - 📅 Support for recent tax years
+- 📊 Comparative tax analysis across income levels
 
 ## Installation
 
@@ -80,6 +82,8 @@ Follow the on-screen instructions:
 
 In the results screen:
 - Press 'd' to toggle detailed tax information
+- Press 'c' to compare tax rates across different income levels
+- Press 'l' to toggle between online (API) and offline (local) calculation modes
 - Press 'b' or 'Esc' to return to the input form
 - Use arrow keys to scroll through results if needed
 
@@ -89,12 +93,15 @@ In the results screen:
 
 ## How it works
 
-SteuerGo connects to the official BMF API to calculate taxes based on the provided income and tax class. The API returns detailed tax information which is then formatted and displayed in a user-friendly way.
+SteuerGo primarily connects to the official BMF API to calculate taxes based on the provided income and tax class. The API returns detailed tax information which is then formatted and displayed in a user-friendly way.
+
+For offline use or when the API is unavailable, SteuerGo can also perform calculations locally by implementing the German tax formula according to the official algorithm published by the BMF. This is based on the XML pseudo-code (PAP - Programmablaufplan) provided by the German tax authorities.
 
 The application is built using:
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea): A powerful TUI framework
 - [Lip Gloss](https://github.com/charmbracelet/lipgloss): For terminal styling
-- Go's XML package: For parsing the BMF API responses
+- Go's XML package: For parsing the BMF API responses and tax algorithm definition
+- Custom implementation of the official German tax calculation formula
 
 ## License
 

@@ -24,6 +24,20 @@ type TaxRequest struct {
 	Period   PaymentPeriod
 	Income   int
 	TaxClass TaxClass
+	
+	AJAHR     int
+	ALTER1    int
+	KRV       int
+	KVZ       float64
+	PVS       int
+	PVZ       int
+	R         int
+	ZKF       float64
+	VBEZ      int
+	VJAHR     int
+	PKPV      int
+	PKV       int
+	PVA       int
 }
 
 type TaxResult struct {

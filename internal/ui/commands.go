@@ -12,7 +12,9 @@ type DebugLogMsg struct {
 	Message string
 }
 
-type CalculationStartedMsg struct{}
+type CalculationStartedMsg struct{
+	UseLocalCalculator bool
+}
 type CalculationMsg struct {
 	Result *api.TaxCalculationResponse
 	Error  error
@@ -30,7 +32,48 @@ type ComparisonMsg struct {
 
 func PerformCalculationCmd(taxClass int, income float64, year string) tea.Cmd {
 	return func() tea.Msg {
-		return CalculationStartedMsg{}
+		return CalculationStartedMsg{
+			UseLocalCalculator: false,
+		}
+	}
+}
+
+func PerformCalculationWithAdvancedOptionsCmd(taxClass int, income float64, year string, advancedParams models.TaxRequest, useLocalCalculator bool) tea.Cmd {
+	return func() tea.Msg {
+		// Create a basic request with main parameters
+		taxRequest := models.TaxRequest{
+			Period:   models.Year,
+			Income:   int(income * 100),
+			TaxClass: models.TaxClass(taxClass),
+			
+			// Copy all advanced parameters
+			AJAHR:  advancedParams.AJAHR,
+			ALTER1: advancedParams.ALTER1,
+			KRV:    advancedParams.KRV,
+			KVZ:    advancedParams.KVZ,
+			PVS:    advancedParams.PVS,
+			PVZ:    advancedParams.PVZ,
+			R:      advancedParams.R,
+			ZKF:    advancedParams.ZKF,
+			VBEZ:   advancedParams.VBEZ,
+			VJAHR:  advancedParams.VJAHR,
+			PKPV:   advancedParams.PKPV,
+			PKV:    advancedParams.PKV,
+			PVA:    advancedParams.PVA,
+		}
+		
+		// Return the calculation started message first
+		return tea.Batch(
+			func() tea.Msg {
+				return CalculationStartedMsg{
+					UseLocalCalculator: useLocalCalculator,
+				}
+			},
+			func() tea.Msg {
+				// Then perform the actual calculation with advanced parameters
+				return FetchResultsWithAdvancedParamsCmd(taxRequest, useLocalCalculator)()
+			},
+		)()
 	}
 }
 
@@ -44,17 +87,56 @@ func CaptureDebugCmd(message string) tea.Cmd {
 
 func FetchResultsCmd(taxClass int, income float64) tea.Cmd {
 	return func() tea.Msg {
+		return FetchResultsWithModeCmd(taxClass, income, false)()
+	}
+}
+
+func FetchResultsWithModeCmd(taxClass int, income float64, useLocalCalculator bool) tea.Cmd {
+	// Create a default TaxRequest with basic parameters
+	taxRequest := models.TaxRequest{
+		Period:   models.Year,
+		Income:   int(income * 100),
+		TaxClass: models.TaxClass(taxClass),
+	}
+	
+	return FetchResultsWithAdvancedParamsCmd(taxRequest, useLocalCalculator)
+}
+
+func FetchResultsWithAdvancedParamsCmd(taxRequest models.TaxRequest, useLocalCalculator bool) tea.Cmd {
+	return func() tea.Msg {
 		var cmds []tea.Cmd
 
-		incomeInCents := int(income * 100)
-
-		taxRequest := models.TaxRequest{
-			Period:   models.Year,
-			Income:   incomeInCents,
-			TaxClass: models.TaxClass(taxClass),
+		taxService := services.NewTaxService()
+		if useLocalCalculator {
+			taxService.EnableLocalCalculator()
+			cmds = append(cmds, CaptureDebugCmd("Using local tax calculator"))
 		}
 
-		response, err := api.CalculateTax(taxRequest)
+		// Calculate tax using the service (with local or remote calculator based on flag)
+		_, err := taxService.CalculateTax(taxRequest)
+		
+		var response *api.TaxCalculationResponse
+		if err == nil {
+			if useLocalCalculator {
+				// Use the local calculator directly to get the raw response
+				localCalc := services.GetLocalTaxCalculator()
+				if !localCalc.IsInitialized() {
+					if initErr := localCalc.Initialize(); initErr != nil {
+						calcMsg := CalculationMsg{
+							Result: nil,
+							Error:  initErr,
+						}
+						cmds = append(cmds, func() tea.Msg { return calcMsg })
+						return tea.Batch(cmds...)()
+					}
+				}
+				// Get the response from local calculator
+				response, err = localCalc.CalculateTax(taxRequest)
+			} else {
+				// Use the API for remote calculation
+				response, _ = api.CalculateTax(taxRequest)
+			}
+		}
 
 		calcMsg := CalculationMsg{
 			Result: response,
@@ -163,4 +245,3 @@ func sortResults(results []models.TaxResult) {
 		}
 	}
 }
-

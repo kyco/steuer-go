@@ -8,22 +8,65 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	
 	"tax-calculator/internal/adapters/api"
+	"tax-calculator/internal/domain/models"
 	"tax-calculator/internal/ui/styles"
 )
 
 func (m *AppModel) updateFocus() {
+	// Blur all inputs first
 	m.incomeInput.Blur()
 	m.yearInput.Blur()
+	m.ajahr.Blur()
+	m.alter1.Blur()
+	m.krv.Blur()
+	m.kvz.Blur()
+	m.pvs.Blur()
+	m.pvz.Blur()
+	m.r.Blur()
+	m.zkf.Blur()
+	m.vbez.Blur()
+	m.vjahr.Blur()
+	m.pkpv.Blur()
+	m.pkv.Blur()
+	m.pva.Blur()
 
+	// Focus the selected field
 	switch m.focusField {
 	case IncomeField:
 		m.incomeInput.Focus()
 	case YearField:
 		m.yearInput.Focus()
+	case AJAHR_Field:
+		m.ajahr.Focus()
+	case ALTER1_Field:
+		m.alter1.Focus()
+	case KRV_Field:
+		m.krv.Focus()
+	case KVZ_Field:
+		m.kvz.Focus()
+	case PVS_Field:
+		m.pvs.Focus()
+	case PVZ_Field:
+		m.pvz.Focus()
+	case R_Field:
+		m.r.Focus()
+	case ZKF_Field:
+		m.zkf.Focus()
+	case VBEZ_Field:
+		m.vbez.Focus()
+	case VJAHR_Field:
+		m.vjahr.Focus()
+	case PKPV_Field:
+		m.pkpv.Focus()
+	case PKV_Field:
+		m.pkv.Focus()
+	case PVA_Field:
+		m.pva.Focus()
 	}
 }
 
 func (m *AppModel) validateAndCalculate() (bool, string) {
+	// Validate basic inputs
 	if strings.TrimSpace(m.incomeInput.Value()) == "" {
 		return false, "Income cannot be empty"
 	}
@@ -40,6 +83,89 @@ func (m *AppModel) validateAndCalculate() (bool, string) {
 		yearVal, err := strconv.Atoi(year)
 		if err != nil || yearVal < 2024 || yearVal > 2030 {
 			return false, "Year must be between 2024 and 2030"
+		}
+	}
+	
+	// If we're on the advanced input step, validate advanced parameters
+	if m.step == AdvancedInputStep {
+		// Validate ALTER1 (must be 0 or 1)
+		if m.alter1.Value() != "" {
+			alter1Val, err := strconv.Atoi(m.alter1.Value())
+			if err != nil || (alter1Val != 0 && alter1Val != 1) {
+				return false, "ALTER1 must be either 0 or 1"
+			}
+		}
+		
+		// Validate KRV (must be 0, 1, or 2)
+		if m.krv.Value() != "" {
+			krvVal, err := strconv.Atoi(m.krv.Value())
+			if err != nil || krvVal < 0 || krvVal > 2 {
+				return false, "KRV must be 0, 1, or 2"
+			}
+		}
+		
+		// Validate KVZ (must be between 0 and 10)
+		if m.kvz.Value() != "" {
+			kvzVal, err := strconv.ParseFloat(m.kvz.Value(), 64)
+			if err != nil || kvzVal < 0 || kvzVal > 10 {
+				return false, "KVZ must be between 0 and 10"
+			}
+		}
+		
+		// Validate PVS (must be 0 or 1)
+		if m.pvs.Value() != "" {
+			pvsVal, err := strconv.Atoi(m.pvs.Value())
+			if err != nil || (pvsVal != 0 && pvsVal != 1) {
+				return false, "PVS must be either 0 or 1"
+			}
+		}
+		
+		// Validate PVZ (must be 0 or 1)
+		if m.pvz.Value() != "" {
+			pvzVal, err := strconv.Atoi(m.pvz.Value())
+			if err != nil || (pvzVal != 0 && pvzVal != 1) {
+				return false, "PVZ must be either 0 or 1"
+			}
+		}
+		
+		// Validate R (must be 0, 1, or 2)
+		if m.r.Value() != "" {
+			rVal, err := strconv.Atoi(m.r.Value())
+			if err != nil || rVal < 0 || rVal > 2 {
+				return false, "R must be 0, 1, or 2"
+			}
+		}
+		
+		// Validate ZKF (must be non-negative)
+		if m.zkf.Value() != "" {
+			zkfVal, err := strconv.ParseFloat(m.zkf.Value(), 64)
+			if err != nil || zkfVal < 0 {
+				return false, "ZKF must be a non-negative number"
+			}
+		}
+		
+		// Validate VJAHR (must be a valid year or 0)
+		if m.vjahr.Value() != "" && m.vjahr.Value() != "0" {
+			vjahrVal, err := strconv.Atoi(m.vjahr.Value())
+			if err != nil || vjahrVal < 1900 || vjahrVal > 2030 {
+				return false, "VJAHR must be a valid year or 0"
+			}
+		}
+		
+		// Validate PKV (must be 0, 1, or 2)
+		if m.pkv.Value() != "" {
+			pkvVal, err := strconv.Atoi(m.pkv.Value())
+			if err != nil || pkvVal < 0 || pkvVal > 2 {
+				return false, "PKV must be 0, 1, or 2"
+			}
+		}
+		
+		// Validate PVA (must be non-negative)
+		if m.pva.Value() != "" {
+			pvaVal, err := strconv.Atoi(m.pva.Value())
+			if err != nil || pvaVal < 0 {
+				return false, "PVA must be a non-negative integer"
+			}
 		}
 	}
 	
@@ -70,11 +196,16 @@ func (m *AppModel) updateResultsContent() {
 	netIncome := income - totalTax
 	taxPercentage := (totalTax / income) * 100
 	
-	title := lipgloss.NewStyle().
+	titleStyle := lipgloss.NewStyle().
 		Foreground(styles.PrimaryColor).
-		Bold(true).
-		Render("Tax Calculation Results")
-	fmt.Fprintf(&content, "%s\n", title)
+		Bold(true)
+	
+	title := "Tax Calculation Results"
+	if m.useLocalCalc {
+		title += " (Local Calculation)"
+	}
+	
+	fmt.Fprintf(&content, "%s\n", titleStyle.Render(title))
 	
 	summaryStyle := lipgloss.NewStyle().
 		Border(styles.MinimalBorder).
@@ -297,6 +428,51 @@ func parseIncome(s string) float64 {
 	return income
 }
 
+func parseIntWithDefault(value string, defaultValue int) int {
+	if value == "" {
+		return defaultValue
+	}
+	
+	result, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return defaultValue
+	}
+	
+	return result
+}
+
+func parseFloatWithDefault(value string, defaultValue float64) float64 {
+	if value == "" {
+		return defaultValue
+	}
+	
+	result, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	if err != nil {
+		return defaultValue
+	}
+	
+	return result
+}
+
+// GetAdvancedParametersFromModel extracts advanced tax parameters from the UI model
+func GetAdvancedParametersFromModel(m *AppModel) models.TaxRequest {
+	return models.TaxRequest{
+		AJAHR:  parseIntWithDefault(m.ajahr.Value(), 0),
+		ALTER1: parseIntWithDefault(m.alter1.Value(), 0),
+		KRV:    parseIntWithDefault(m.krv.Value(), 0),
+		KVZ:    parseFloatWithDefault(m.kvz.Value(), 1.3),
+		PVS:    parseIntWithDefault(m.pvs.Value(), 0),
+		PVZ:    parseIntWithDefault(m.pvz.Value(), 0),
+		R:      parseIntWithDefault(m.r.Value(), 0),
+		ZKF:    parseFloatWithDefault(m.zkf.Value(), 0.0),
+		VBEZ:   parseIntWithDefault(m.vbez.Value(), 0),
+		VJAHR:  parseIntWithDefault(m.vjahr.Value(), 0),
+		PKPV:   parseIntWithDefault(m.pkpv.Value(), 0),
+		PKV:    parseIntWithDefault(m.pkv.Value(), 0),
+		PVA:    parseIntWithDefault(m.pva.Value(), 0),
+	}
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -309,4 +485,14 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// ensureFieldVisible makes sure the currently focused field is visible in the viewport
+func (m *AppModel) ensureFieldVisible() {
+	if m.step != AdvancedInputStep {
+		return
+	}
+	
+	// Use the centralized scrollToField function to ensure consistency
+	m.scrollToField(m.focusField)
 }

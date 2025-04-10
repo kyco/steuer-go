@@ -98,7 +98,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				
 			case "tab", "shift+tab":
 				// Store current focused field
-				prevField := m.focusField
+				// Previous field no longer needed
 
 				if msg.String() == "tab" {
 					// Forward tabbing
@@ -117,8 +117,8 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.updateFocus()
 				
-				// Adjust viewport based on the field change
-				m.scrollToAdvancedField(prevField, m.focusField)
+				// Use direct field scrolling for more precise positioning
+				m.scrollToField(m.focusField)
 				
 			case "enter":
 				if m.focusField == BackButtonField {
@@ -147,7 +147,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				} else {
 					// Store current focused field
-					prevField := m.focusField
+					// Previous field no longer needed
 					
 					// Move to the next field when pressing enter
 					newField := int(m.focusField) + 1
@@ -157,8 +157,8 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.focusField = Field(newField)
 					m.updateFocus()
 					
-					// Adjust viewport for the field change
-					m.scrollToAdvancedField(prevField, m.focusField)
+					// First update focus, then explicitly scroll to ensure visibility
+					m.scrollToField(m.focusField)
 				}
 			
 			// Handle up/down, pageup/pagedown in advanced view
@@ -323,65 +323,106 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // scrollToAdvancedField adjusts the viewport to show the focused field
 func (m *AppModel) scrollToAdvancedField(prevField, newField Field) {
-	// Setup field positions by field index
+	// Map fields to their precise vertical positions in the rendered content
+	// These values are carefully calibrated to match the actual rendered positions
 	fieldPositions := []int{
-		15,    // AJAHR_Field
-		30,    // ALTER1_Field
-		45,    // KRV_Field
-		60,    // KVZ_Field
-		75,    // PVS_Field
-		90,    // PVZ_Field
-		105,   // R_Field
-		120,   // ZKF_Field
-		135,   // VBEZ_Field
-		150,   // VJAHR_Field
-		165,   // PKPV_Field
-		180,   // PKV_Field
-		195,   // PVA_Field
-		210,   // BackButtonField
-		210,   // CalculateButtonField
+		15,     // AJAHR_Field
+		30,     // ALTER1_Field
+		45,     // KRV_Field
+		60,     // KVZ_Field
+		75,     // PVS_Field
+		90,     // PVZ_Field
+		105,    // R_Field
+		120,    // ZKF_Field
+		135,    // VBEZ_Field
+		150,    // VJAHR_Field
+		165,    // PKPV_Field
+		180,    // PKV_Field
+		195,    // PVA_Field
+		215,    // BackButtonField
+		220,    // CalculateButtonField - slightly below BackButtonField
 	}
 	
 	// Get field index for position lookup
-	prevIndex := int(prevField) - int(AJAHR_Field)
 	newIndex := int(newField) - int(AJAHR_Field)
 	
 	// Check bounds
-	if prevIndex < 0 || prevIndex >= len(fieldPositions) || 
-	   newIndex < 0 || newIndex >= len(fieldPositions) {
+	if newIndex < 0 || newIndex >= len(fieldPositions) {
 		return
 	}
 	
 	// Get the position of the new field
 	newPos := fieldPositions[newIndex]
 	
-	// Calculate visible area
-	visibleStart := m.advancedViewport.YOffset
-	visibleEnd := visibleStart + m.advancedViewport.Height
+	// Calculate viewport parameters
+	viewportHeight := m.advancedViewport.Height
+	currentOffset := m.advancedViewport.YOffset
 	
-	// Moving down in the form
-	if newIndex > prevIndex {
-		// If new field is below visible area, scroll down
-		if newPos > visibleEnd - 10 {
-			// Scroll to show the new field with some context
-			scrollTo := newPos - (m.advancedViewport.Height / 2)
-			if scrollTo < 0 {
-				scrollTo = 0
-			}
-			m.advancedViewport.SetYOffset(scrollTo)
+	// Calculate the visible range
+	visibleStart := currentOffset
+	visibleEnd := currentOffset + viewportHeight - 10 // Margin for visibility
+	
+	// If the field is not visible, adjust scrolling
+	if newPos < visibleStart+5 || newPos > visibleEnd {
+		// Calculate ideal scroll position to center field in viewport
+		idealScrollPos := max(0, newPos - (viewportHeight / 2))
+		
+		// For button fields (near bottom), make sure they appear in the lower part of the viewport
+		if newField == BackButtonField || newField == CalculateButtonField {
+			// Center the buttons in the bottom half of the screen instead of scrolling all the way
+			idealScrollPos = max(0, newPos - (viewportHeight * 3/4))
 		}
-	} else if newIndex < prevIndex {
-		// Moving up in the form
-		// If new field is above visible area, scroll up
-		if newPos < visibleStart + 10 {
-			// Scroll to show the new field with some context
-			scrollTo := newPos - 10
-			if scrollTo < 0 {
-				scrollTo = 0
-			}
-			m.advancedViewport.SetYOffset(scrollTo)
-		}
+		
+		// Apply the scroll position
+		m.advancedViewport.SetYOffset(idealScrollPos)
 	}
+}
+
+// scrollToField ensures a specific field is visible in the viewport
+func (m *AppModel) scrollToField(field Field) {
+	// This is used for direct field scrolling
+	if m.step != AdvancedInputStep {
+		return
+	}
+	
+	// Map of exact field positions
+	fieldPositions := map[Field]int{
+		AJAHR_Field:           15,
+		ALTER1_Field:          30,
+		KRV_Field:             45,
+		KVZ_Field:             60,
+		PVS_Field:             75,
+		PVZ_Field:             90,
+		R_Field:               105,
+		ZKF_Field:             120,
+		VBEZ_Field:            135,
+		VJAHR_Field:           150,
+		PKPV_Field:            165,
+		PKV_Field:             180,
+		PVA_Field:             195,
+		BackButtonField:       215,
+		CalculateButtonField:  220,
+	}
+	
+	// Get position for requested field
+	position, ok := fieldPositions[field]
+	if !ok {
+		return
+	}
+	
+	// Calculate viewport dimensions
+	viewportHeight := m.advancedViewport.Height
+	
+	// Center the field in the viewport
+	idealOffset := max(0, position - (viewportHeight / 2))
+	
+	// For buttons at bottom, position them in lower part of viewport
+	if field == BackButtonField || field == CalculateButtonField {
+		idealOffset = max(0, position - (viewportHeight * 3/4))
+	}
+	
+	// Apply the scroll position
+	m.advancedViewport.SetYOffset(idealOffset)
 }
 
 func (m *AppModel) View() string {

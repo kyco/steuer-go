@@ -233,6 +233,7 @@ func NewAppModel() *AppModel {
 	
 	advVp := viewport.New(100, 40)
 	advVp.Style = styles.ResultsBoxStyle
+	advVp.MouseWheelEnabled = true
 
 	return &AppModel{
 		step:               InputStep,

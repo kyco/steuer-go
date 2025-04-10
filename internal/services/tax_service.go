@@ -6,14 +6,60 @@ import (
 	"tax-calculator/internal/domain/models"
 )
 
-type TaxService struct{}
+type TaxService struct{
+	useLocalCalculator bool
+}
 
 func NewTaxService() *TaxService {
-	return &TaxService{}
+	return &TaxService{
+		useLocalCalculator: false,
+	}
+}
+
+func (s *TaxService) EnableLocalCalculator() {
+	s.useLocalCalculator = true
+}
+
+func (s *TaxService) DisableLocalCalculator() {
+	s.useLocalCalculator = false
 }
 
 func (s *TaxService) CalculateTax(req models.TaxRequest) (models.TaxResult, error) {
-	response, err := api.CalculateTax(req)
+	var response *api.TaxCalculationResponse
+	var err error
+	
+	if s.useLocalCalculator {
+		localCalc := GetLocalTaxCalculator()
+		
+		if !localCalc.IsInitialized() {
+			if err := localCalc.Initialize(); err != nil {
+				return models.TaxResult{
+					Income: float64(req.Income) / 100,
+					Error:  fmt.Errorf("failed to initialize local calculator: %w", err),
+				}, err
+			}
+		}
+		
+		response, err = localCalc.CalculateTax(req)
+	} else {
+		response, err = api.CalculateTax(req)
+		
+		if err != nil {
+			localCalc := GetLocalTaxCalculator()
+			
+			if !localCalc.IsInitialized() {
+				if initErr := localCalc.Initialize(); initErr != nil {
+					return models.TaxResult{
+						Income: float64(req.Income) / 100,
+						Error:  fmt.Errorf("API error: %v, local calculator error: %w", err, initErr),
+					}, err
+				}
+			}
+			
+			response, err = localCalc.CalculateTax(req)
+		}
+	}
+
 	if err != nil {
 		return models.TaxResult{
 			Income: float64(req.Income) / 100,
