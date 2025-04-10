@@ -1,7 +1,7 @@
-package ui
+package views
 
 import (
-	"tax-calculator/internal/domain/models"
+	"tax-calculator/internal/tax/models"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"

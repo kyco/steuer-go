@@ -1,10 +1,10 @@
-package api
+package bmf
 
 import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
-	"tax-calculator/internal/domain/models"
+	"tax-calculator/internal/tax/models"
 )
 
 const (

@@ -1,4 +1,4 @@
-package ui
+package views
 
 import (
 	"fmt"
@@ -10,9 +10,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"tax-calculator/internal/adapters/api"
-	"tax-calculator/internal/domain/models"
-	"tax-calculator/internal/ui/styles"
+	"tax-calculator/internal/tax/bmf"
+	"tax-calculator/internal/tax/models"
+	"tax-calculator/internal/tax/views/styles"
 )
 
 type Step int
@@ -87,7 +87,7 @@ type AppModel struct {
 	
 	resultsLoading  bool
 	resultsError    string
-	result          *api.TaxCalculationResponse
+	result          *bmf.TaxCalculationResponse
 	showDetails     bool
 	debugMessages   []string
 

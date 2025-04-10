@@ -1,4 +1,4 @@
-package ui
+package views
 
 import (
 	"fmt"
@@ -7,9 +7,9 @@ import (
 	
 	"github.com/charmbracelet/lipgloss"
 	
-	"tax-calculator/internal/adapters/api"
-	"tax-calculator/internal/domain/models"
-	"tax-calculator/internal/ui/styles"
+	"tax-calculator/internal/tax/bmf"
+	"tax-calculator/internal/tax/models"
+	"tax-calculator/internal/tax/views/styles"
 )
 
 func (m *AppModel) updateFocus() {
@@ -188,8 +188,8 @@ func (m *AppModel) updateResultsContent() {
 		}
 	}
 
-	incomeTaxEuros := float64(api.MustParseInt(incomeTax)) / 100
-	solidarityTaxEuros := float64(api.MustParseInt(solidarityTax)) / 100
+	incomeTaxEuros := float64(bmf.MustParseInt(incomeTax)) / 100
+	solidarityTaxEuros := float64(bmf.MustParseInt(solidarityTax)) / 100
 	totalTax := incomeTaxEuros + solidarityTaxEuros
 	
 	income, _ := strconv.ParseFloat(m.incomeInput.Value(), 64)
@@ -283,7 +283,7 @@ func (m *AppModel) updateResultsContent() {
 			lipgloss.NewStyle().Foreground(styles.SecondaryColor).Render(strings.Repeat("─", 40)))
 
 		for _, output := range m.result.Outputs.Output {
-			valueInEuros := float64(api.MustParseInt(output.Value)) / 100
+			valueInEuros := float64(bmf.MustParseInt(output.Value)) / 100
 			fmt.Fprintf(&content, "%-10s %-14.2f %-10s\n",
 				output.Name,
 				valueInEuros,

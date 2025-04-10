@@ -1,9 +1,9 @@
-package services
+package calculation
 
 import (
 	"fmt"
-	"tax-calculator/internal/adapters/api"
-	"tax-calculator/internal/domain/models"
+	"tax-calculator/internal/tax/bmf"
+	"tax-calculator/internal/tax/models"
 )
 
 type TaxService struct{
@@ -25,7 +25,7 @@ func (s *TaxService) DisableLocalCalculator() {
 }
 
 func (s *TaxService) CalculateTax(req models.TaxRequest) (models.TaxResult, error) {
-	var response *api.TaxCalculationResponse
+	var response *bmf.TaxCalculationResponse
 	var err error
 	
 	if s.useLocalCalculator {
@@ -42,7 +42,7 @@ func (s *TaxService) CalculateTax(req models.TaxRequest) (models.TaxResult, erro
 		
 		response, err = localCalc.CalculateTax(req)
 	} else {
-		response, err = api.CalculateTax(req)
+		response, err = bmf.CalculateTax(req)
 		
 		if err != nil {
 			localCalc := GetLocalTaxCalculator()
@@ -70,7 +70,7 @@ func (s *TaxService) CalculateTax(req models.TaxRequest) (models.TaxResult, erro
 	return s.GetTaxSummary(response, float64(req.Income)/100), nil
 }
 
-func (s *TaxService) GetTaxSummary(response *api.TaxCalculationResponse, income float64) models.TaxResult {
+func (s *TaxService) GetTaxSummary(response *bmf.TaxCalculationResponse, income float64) models.TaxResult {
 	result := models.TaxResult{
 		Income: income,
 	}
@@ -88,8 +88,8 @@ func (s *TaxService) GetTaxSummary(response *api.TaxCalculationResponse, income 
 		}
 	}
 
-	result.IncomeTax = float64(api.MustParseInt(incomeTax)) / 100
-	result.SolidarityTax = float64(api.MustParseInt(solidarityTax)) / 100
+	result.IncomeTax = float64(bmf.MustParseInt(incomeTax)) / 100
+	result.SolidarityTax = float64(bmf.MustParseInt(solidarityTax)) / 100
 	result.TotalTax = result.IncomeTax + result.SolidarityTax
 	result.NetIncome = income - result.TotalTax
 	if income > 0 {
@@ -99,7 +99,7 @@ func (s *TaxService) GetTaxSummary(response *api.TaxCalculationResponse, income 
 	return result
 }
 
-func (s *TaxService) GetReadableTaxSummary(response *api.TaxCalculationResponse) string {
+func (s *TaxService) GetReadableTaxSummary(response *bmf.TaxCalculationResponse) string {
 	var incomeTax, solidarityTax string
 
 	for _, output := range response.Outputs.Output {
@@ -110,8 +110,8 @@ func (s *TaxService) GetReadableTaxSummary(response *api.TaxCalculationResponse)
 		}
 	}
 
-	incomeTaxEuros := float64(api.MustParseInt(incomeTax)) / 100
-	solidarityTaxEuros := float64(api.MustParseInt(solidarityTax)) / 100
+	incomeTaxEuros := float64(bmf.MustParseInt(incomeTax)) / 100
+	solidarityTaxEuros := float64(bmf.MustParseInt(solidarityTax)) / 100
 	totalTax := incomeTaxEuros + solidarityTaxEuros
 
 	return fmt.Sprintf("Tax Summary for %s:\n"+

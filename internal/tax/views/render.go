@@ -1,4 +1,4 @@
-package ui
+package views
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
 
-	"tax-calculator/internal/ui/styles"
+	"tax-calculator/internal/tax/views/styles"
 )
 
 func (m *AppModel) renderInputForm() string {

@@ -1,16 +1,16 @@
-package services
+package calculation
 
 import (
 	"fmt"
 	"math/big"
 	"sync"
-	"tax-calculator/internal/adapters/api"
-	"tax-calculator/internal/domain/models"
+	"tax-calculator/internal/tax/bmf"
+	"tax-calculator/internal/tax/models"
 )
 
 type LocalTaxCalculator struct {
-	xmlData     *api.PAPData
-	calculator  *api.TaxCalculator
+	xmlData     *bmf.PAPData
+	calculator  *bmf.TaxCalculator
 	initialized bool
 	mu          sync.RWMutex
 }
@@ -37,13 +37,13 @@ func (l *LocalTaxCalculator) Initialize() error {
 		return nil
 	}
 
-	xmlData, err := api.FetchTaxCalculationXML()
+	xmlData, err := bmf.FetchTaxCalculationXML()
 	if err != nil {
 		return fmt.Errorf("failed to initialize local tax calculator: %w", err)
 	}
 
 	l.xmlData = xmlData
-	l.calculator = api.NewTaxCalculator(xmlData)
+	l.calculator = bmf.NewTaxCalculator(xmlData)
 	l.initialized = true
 
 	return nil
@@ -55,7 +55,7 @@ func (l *LocalTaxCalculator) IsInitialized() bool {
 	return l.initialized
 }
 
-func (l *LocalTaxCalculator) CalculateTax(req models.TaxRequest) (*api.TaxCalculationResponse, error) {
+func (l *LocalTaxCalculator) CalculateTax(req models.TaxRequest) (*bmf.TaxCalculationResponse, error) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
@@ -102,11 +102,11 @@ func (l *LocalTaxCalculator) CalculateTax(req models.TaxRequest) (*api.TaxCalcul
 		return nil, fmt.Errorf("tax calculation failed: %w", err)
 	}
 
-	response := &api.TaxCalculationResponse{
+	response := &bmf.TaxCalculationResponse{
 		Year:        "2025",
 		Information: "Local calculation based on BMF XML",
-		Outputs: api.Outputs{
-			Output: make([]api.Output, 0),
+		Outputs: bmf.Outputs{
+			Output: make([]bmf.Output, 0),
 		},
 	}
 
@@ -125,7 +125,7 @@ func (l *LocalTaxCalculator) CalculateTax(req models.TaxRequest) (*api.TaxCalcul
 			strValue = fmt.Sprintf("%v", v)
 		}
 
-		response.Outputs.Output = append(response.Outputs.Output, api.Output{
+		response.Outputs.Output = append(response.Outputs.Output, bmf.Output{
 			Name:  name,
 			Value: strValue,
 			Type:  "BigDecimal",

@@ -1,11 +1,11 @@
-package api
+package bmf
 
 import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"tax-calculator/internal/domain/models"
+	"tax-calculator/internal/tax/models"
 	"testing"
 )
 

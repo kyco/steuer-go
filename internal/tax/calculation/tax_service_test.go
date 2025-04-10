@@ -1,27 +1,27 @@
-package services
+package calculation
 
 import (
 	"errors"
 	"fmt"
-	"tax-calculator/internal/adapters/api"
-	"tax-calculator/internal/domain/models"
+	"tax-calculator/internal/tax/bmf"
+	"tax-calculator/internal/tax/models"
 	"testing"
 )
 
 // Mock API response for testing
-func mockTaxResponse(incomeTax, solidarityTax string) *api.TaxCalculationResponse {
-	return &api.TaxCalculationResponse{
+func mockTaxResponse(incomeTax, solidarityTax string) *bmf.TaxCalculationResponse {
+	return &bmf.TaxCalculationResponse{
 		Year:        "2025",
 		Information: "Mock tax response",
-		Inputs: api.Inputs{
-			Input: []api.Input{
+		Inputs: bmf.Inputs{
+			Input: []bmf.Input{
 				{Name: "LZZ", Value: "1", Status: "ok"},
 				{Name: "RE4", Value: "50000", Status: "ok"},
 				{Name: "STKL", Value: "1", Status: "ok"},
 			},
 		},
-		Outputs: api.Outputs{
-			Output: []api.Output{
+		Outputs: bmf.Outputs{
+			Output: []bmf.Output{
 				{Name: "LSTLZZ", Value: incomeTax, Type: "STANDARD"},
 				{Name: "SOLZLZZ", Value: solidarityTax, Type: "STANDARD"},
 			},
@@ -31,7 +31,7 @@ func mockTaxResponse(incomeTax, solidarityTax string) *api.TaxCalculationRespons
 
 // Define interface for API to enable mocking
 type TaxCalculator interface {
-	CalculateTax(req models.TaxRequest) (*api.TaxCalculationResponse, error)
+	CalculateTax(req models.TaxRequest) (*bmf.TaxCalculationResponse, error)
 }
 
 // Mock implementation of tax calculator

@@ -1,11 +1,11 @@
-package ui
+package views
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
-	"tax-calculator/internal/adapters/api"
-	"tax-calculator/internal/domain/models"
-	"tax-calculator/internal/services"
+	"tax-calculator/internal/tax/bmf"
+	"tax-calculator/internal/tax/models"
+	"tax-calculator/internal/tax/calculation"
 )
 
 type DebugLogMsg struct {
@@ -16,7 +16,7 @@ type CalculationStartedMsg struct{
 	UseLocalCalculator bool
 }
 type CalculationMsg struct {
-	Result *api.TaxCalculationResponse
+	Result *bmf.TaxCalculationResponse
 	Error  error
 }
 
@@ -106,7 +106,7 @@ func FetchResultsWithAdvancedParamsCmd(taxRequest models.TaxRequest, useLocalCal
 	return func() tea.Msg {
 		var cmds []tea.Cmd
 
-		taxService := services.NewTaxService()
+		taxService := calculation.NewTaxService()
 		if useLocalCalculator {
 			taxService.EnableLocalCalculator()
 			cmds = append(cmds, CaptureDebugCmd("Using local tax calculator"))
@@ -115,11 +115,11 @@ func FetchResultsWithAdvancedParamsCmd(taxRequest models.TaxRequest, useLocalCal
 		// Calculate tax using the service (with local or remote calculator based on flag)
 		_, err := taxService.CalculateTax(taxRequest)
 		
-		var response *api.TaxCalculationResponse
+		var response *bmf.TaxCalculationResponse
 		if err == nil {
 			if useLocalCalculator {
 				// Use the local calculator directly to get the raw response
-				localCalc := services.GetLocalTaxCalculator()
+				localCalc := calculation.GetLocalTaxCalculator()
 				if !localCalc.IsInitialized() {
 					if initErr := localCalc.Initialize(); initErr != nil {
 						calcMsg := CalculationMsg{
@@ -134,7 +134,7 @@ func FetchResultsWithAdvancedParamsCmd(taxRequest models.TaxRequest, useLocalCal
 				response, err = localCalc.CalculateTax(taxRequest)
 			} else {
 				// Use the API for remote calculation
-				response, _ = api.CalculateTax(taxRequest)
+				response, _ = bmf.CalculateTax(taxRequest)
 			}
 		}
 
@@ -174,7 +174,7 @@ func CompletedResultsCmd(results []models.TaxResult) tea.Cmd {
 
 func FetchComparisonCmd(taxClass int, income float64) tea.Cmd {
 	return func() tea.Msg {
-		taxService := services.NewTaxService()
+		taxService := calculation.NewTaxService()
 
 		halfIncome := income / 2
 		doubleIncome := income * 2
@@ -212,7 +212,7 @@ func FetchComparisonCmd(taxClass int, income float64) tea.Cmd {
 	}
 }
 
-func calculateTaxForIncome(taxClass int, income float64, taxService *services.TaxService) models.TaxResult {
+func calculateTaxForIncome(taxClass int, income float64, taxService *calculation.TaxService) models.TaxResult {
 	incomeInCents := int(income * 100)
 
 	taxRequest := models.TaxRequest{
@@ -221,7 +221,7 @@ func calculateTaxForIncome(taxClass int, income float64, taxService *services.Ta
 		TaxClass: models.TaxClass(taxClass),
 	}
 
-	response, err := api.CalculateTax(taxRequest)
+	response, err := bmf.CalculateTax(taxRequest)
 
 	var result models.TaxResult
 	if err != nil {
