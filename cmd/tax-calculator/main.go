@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"tax-calculator/internal/tax/views"
+	"tax-calculator/internal/main/views"
 )
 
 func main() {

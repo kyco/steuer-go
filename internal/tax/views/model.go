@@ -15,13 +15,21 @@ import (
 	"tax-calculator/internal/tax/views/styles"
 )
 
-type Step int
+type Screen int
 
 const (
-	InputStep Step = iota
-	AdvancedInputStep
-	ResultsStep
-	ComparisonStep
+	MainScreen Screen = iota
+	ResultsScreen
+	ComparisonScreen
+	AdvancedScreen
+)
+
+type Tab int
+
+const (
+	BasicTab Tab = iota
+	DetailsTab
+	AboutTab
 )
 
 type Field int
@@ -30,8 +38,8 @@ const (
 	TaxClassField Field = iota
 	IncomeField
 	YearField
-	AdvancedButtonField
 	CalculateButtonField
+	AdvancedButtonField
 	
 	// Advanced input fields
 	AJAHR_Field
@@ -53,10 +61,19 @@ const (
 type TaxClassOption struct {
 	Class int
 	Desc  string
+	Icon  string
 }
 
-type AppModel struct {
-	step       Step
+type AdvancedField struct {
+	Label       string
+	Description string
+	Model       textinput.Model
+	Field       Field
+}
+
+type RetroApp struct {
+	screen     Screen
+	activeTab  Tab
 	focusField Field
 
 	taxClassOptions  []TaxClassOption
@@ -65,31 +82,19 @@ type AppModel struct {
 	yearInput        textinput.Model
 	useLocalCalc     bool
 
-	// Advanced input fields
-	ajahr  textinput.Model
-	alter1 textinput.Model
-	krv    textinput.Model
-	kvz    textinput.Model
-	pvs    textinput.Model
-	pvz    textinput.Model
-	r      textinput.Model
-	zkf    textinput.Model
-	vbez   textinput.Model
-	vjahr  textinput.Model
-	pkpv   textinput.Model
-	pkv    textinput.Model
-	pva    textinput.Model
+	// Advanced input fields in a more organized structure
+	advancedFields []AdvancedField
 	
 	// Viewports for scrollable content
-	advancedViewport viewport.Model
-	resultsViewport  viewport.Model
+	mainViewport      viewport.Model
+	resultsViewport   viewport.Model
+	advancedViewport  viewport.Model
 	comparisonViewport viewport.Model
 	
 	resultsLoading  bool
 	resultsError    string
 	result          *bmf.TaxCalculationResponse
 	showDetails     bool
-	debugMessages   []string
 
 	comparisonLoading  bool
 	comparisonError    string
@@ -101,23 +106,26 @@ type AppModel struct {
 	windowSize tea.WindowSizeMsg
 }
 
-func NewAppModel() *AppModel {
+func NewRetroApp() *RetroApp {
 	taxClassOptions := []TaxClassOption{
-		{Class: 1, Desc: "Single or permanently separated persons"},
-		{Class: 2, Desc: "Single or permanently separated persons with child"},
-		{Class: 3, Desc: "Married person (higher income)"},
-		{Class: 4, Desc: "Married person (equal income)"},
-		{Class: 5, Desc: "Married person (lower income)"},
-		{Class: 6, Desc: "Person with multiple employments"},
+		{Class: 1, Desc: "Single, separated", Icon: "👤"},
+		{Class: 2, Desc: "Single with child", Icon: "👨‍👦"},
+		{Class: 3, Desc: "Married (higher income)", Icon: "💍"},
+		{Class: 4, Desc: "Married (equal income)", Icon: "👫"},
+		{Class: 5, Desc: "Married (lower income)", Icon: "👪"},
+		{Class: 6, Desc: "Multiple employments", Icon: "🏢"},
 	}
 
+	// Custom text input style
 	incomeInput := textinput.New()
-	incomeInput.Placeholder = "Enter income (e.g. 50000)"
+	incomeInput.Placeholder = "50000"
 	incomeInput.Width = 20
 	incomeInput.CharLimit = 10
 	incomeInput.Prompt = "€ "
 	incomeInput.TextStyle = lipgloss.NewStyle().Foreground(styles.FgColor)
+	incomeInput.PromptStyle = lipgloss.NewStyle().Foreground(styles.SuccessColor)
 
+	// Current year with properly styled input
 	currentYear := time.Now().Year()
 	yearInput := textinput.New()
 	yearInput.Placeholder = fmt.Sprintf("%d", currentYear)
@@ -125,148 +133,213 @@ func NewAppModel() *AppModel {
 	yearInput.CharLimit = 4
 	yearInput.SetValue(fmt.Sprintf("%d", currentYear))
 	yearInput.TextStyle = lipgloss.NewStyle().Foreground(styles.FgColor)
+	yearInput.PromptStyle = lipgloss.NewStyle().Foreground(styles.AccentColor)
 	
-	// Create advanced input fields with defaults
-	textStyle := lipgloss.NewStyle().Foreground(styles.FgColor)
+	// Initialize advanced input fields with organized structure
 	
-	// Initialize all advanced inputs
-	ajahr := textinput.New()
-	ajahr.Placeholder = "0"
-	ajahr.Width = 10
-	ajahr.CharLimit = 4
-	ajahr.TextStyle = textStyle
+	// Build advanced fields data structure
+	advancedFields := []AdvancedField{
+		createAdvancedField(
+			"Year after 64th birthday",
+			"Enter year after taxpayer's 64th birthday (0 if not applicable)",
+			"0", 10, 4, AJAHR_Field),
+		
+		createAdvancedField(
+			"Completed 64 years",
+			"Enter 1 if taxpayer was 64+ at start of calendar year, 0 otherwise",
+			"0", 5, 1, ALTER1_Field),
+			
+		createAdvancedField(
+			"Social insurance type",
+			"0: Normal statutory pension, 1: No compulsory insurance, 2: Reduced rate",
+			"0", 5, 1, KRV_Field),
+			
+		createAdvancedField(
+			"Additional health rate %",
+			"Additional health insurance percentage (standard is 1.3%)",
+			"1.3", 10, 5, KVZ_Field),
+			
+		createAdvancedField(
+			"Employer in Saxony",
+			"1 if employer is in Saxony (different nursing care), 0 otherwise",
+			"0", 5, 1, PVS_Field),
+			
+		createAdvancedField(
+			"Childless surcharge",
+			"1 if employee (23+) pays childless surcharge for nursing care",
+			"0", 5, 1, PVZ_Field),
+			
+		createAdvancedField(
+			"Religion code",
+			"0: No church tax, 1: Catholic church, 2: Protestant church",
+			"0", 5, 1, R_Field),
+			
+		createAdvancedField(
+			"Child allowance",
+			"Number of children for tax allowance (can be decimal, e.g. 0.5)",
+			"0.0", 10, 5, ZKF_Field),
+			
+		createAdvancedField(
+			"Pension payments €",
+			"Annual pension income in euros (0 if none)",
+			"0", 10, 10, VBEZ_Field),
+			
+		createAdvancedField(
+			"First pension year",
+			"Year when taxpayer first received pension (0 if not applicable)",
+			"0", 10, 4, VJAHR_Field),
+			
+		createAdvancedField(
+			"Private insurance payment €",
+			"Monthly private health insurance premium in euros",
+			"0", 10, 10, PKPV_Field),
+			
+		createAdvancedField(
+			"Health insurance type",
+			"0: Statutory, 1: Private without employer subsidy, 2: Private with subsidy",
+			"0", 5, 1, PKV_Field),
+			
+		createAdvancedField(
+			"Children for care insurance",
+			"Number of children for reduced nursing care insurance (0-4)",
+			"0", 5, 1, PVA_Field),
+	}
 
-	alter1 := textinput.New()
-	alter1.Placeholder = "0"
-	alter1.Width = 5
-	alter1.CharLimit = 1
-	alter1.TextStyle = textStyle
-	alter1.SetValue("0")
-
-	krv := textinput.New()
-	krv.Placeholder = "0"
-	krv.Width = 5
-	krv.CharLimit = 1
-	krv.TextStyle = textStyle
-	krv.SetValue("0")
-
-	kvz := textinput.New()
-	kvz.Placeholder = "1.3"
-	kvz.Width = 10
-	kvz.CharLimit = 5
-	kvz.TextStyle = textStyle
-	kvz.SetValue("1.3")
-
-	pvs := textinput.New()
-	pvs.Placeholder = "0"
-	pvs.Width = 5
-	pvs.CharLimit = 1
-	pvs.TextStyle = textStyle
-	pvs.SetValue("0")
-
-	pvz := textinput.New()
-	pvz.Placeholder = "0"
-	pvz.Width = 5
-	pvz.CharLimit = 1
-	pvz.TextStyle = textStyle
-	pvz.SetValue("0")
-
-	r := textinput.New()
-	r.Placeholder = "0"
-	r.Width = 5
-	r.CharLimit = 1
-	r.TextStyle = textStyle
-	r.SetValue("0")
-
-	zkf := textinput.New()
-	zkf.Placeholder = "0.0"
-	zkf.Width = 10
-	zkf.CharLimit = 5
-	zkf.TextStyle = textStyle
-	zkf.SetValue("0.0")
-
-	vbez := textinput.New()
-	vbez.Placeholder = "0"
-	vbez.Width = 10
-	vbez.CharLimit = 10
-	vbez.TextStyle = textStyle
-	vbez.SetValue("0")
-
-	vjahr := textinput.New()
-	vjahr.Placeholder = "0"
-	vjahr.Width = 10
-	vjahr.CharLimit = 4
-	vjahr.TextStyle = textStyle
-	vjahr.SetValue("0")
-
-	pkpv := textinput.New()
-	pkpv.Placeholder = "0"
-	pkpv.Width = 10
-	pkpv.CharLimit = 10
-	pkpv.TextStyle = textStyle
-	pkpv.SetValue("0")
-
-	pkv := textinput.New()
-	pkv.Placeholder = "0"
-	pkv.Width = 5
-	pkv.CharLimit = 1
-	pkv.TextStyle = textStyle
-	pkv.SetValue("0")
-
-	pva := textinput.New()
-	pva.Placeholder = "0"
-	pva.Width = 5
-	pva.CharLimit = 1
-	pva.TextStyle = textStyle
-	pva.SetValue("0")
-
+	// Create fancy spinner
 	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(styles.PrimaryColor)
+	s.Spinner = spinner.Points
+	s.Style = styles.SpinnerStyle
 
-	// Initialize viewports
+	// Initialize viewports with proper styling
+	mainVp := viewport.New(100, 40)
+	mainVp.Style = styles.BaseStyle
+	
 	resultsVp := viewport.New(100, 40)
-	resultsVp.Style = styles.ResultsBoxStyle
-
+	resultsVp.Style = styles.BaseStyle
+	
 	compVp := viewport.New(100, 40)
-	compVp.Style = styles.ResultsBoxStyle
+	compVp.Style = styles.BaseStyle
 	
 	advVp := viewport.New(100, 40)
-	advVp.Style = styles.ResultsBoxStyle
+	advVp.Style = styles.BaseStyle
 	advVp.MouseWheelEnabled = true
 
-	return &AppModel{
-		step:               InputStep,
-		focusField:         TaxClassField,
-		taxClassOptions:    taxClassOptions,
-		selectedTaxClass:   1, // Default selection
-		incomeInput:        incomeInput,
-		yearInput:          yearInput,
-		useLocalCalc:       false,
+	return &RetroApp{
+		screen:            MainScreen,
+		activeTab:         BasicTab,
+		focusField:        TaxClassField,
+		taxClassOptions:   taxClassOptions,
+		selectedTaxClass:  1, // Default selection
+		incomeInput:       incomeInput,
+		yearInput:         yearInput,
+		useLocalCalc:      false,
 		
-		// Advanced inputs
-		ajahr:              ajahr,
-		alter1:             alter1,
-		krv:                krv,
-		kvz:                kvz,
-		pvs:                pvs,
-		pvz:                pvz,
-		r:                  r,
-		zkf:                zkf,
-		vbez:               vbez,
-		vjahr:              vjahr,
-		pkpv:               pkpv,
-		pkv:                pkv,
-		pva:                pva,
+		// Advanced fields
+		advancedFields:    advancedFields,
 		
 		// Viewports
-		resultsViewport:    resultsVp,
+		mainViewport:      mainVp,
+		resultsViewport:   resultsVp,
 		comparisonViewport: compVp,
-		advancedViewport:   advVp,
+		advancedViewport:  advVp,
 		
-		spinner:            s,
-		completedCalls:     0,
-		totalCalls:         0,
-		debugMessages:      []string{},
+		spinner:          s,
+		completedCalls:   0,
+		totalCalls:       0,
 	}
+}
+
+// Helper function to create advanced input fields with consistent styling
+func createAdvancedField(label, description, defaultValue string, width, charLimit int, fieldType Field) AdvancedField {
+	input := textinput.New()
+	input.Placeholder = defaultValue
+	input.Width = width
+	input.CharLimit = charLimit
+	input.TextStyle = lipgloss.NewStyle().Foreground(styles.FgColor)
+	input.PromptStyle = lipgloss.NewStyle().Foreground(styles.AccentColor)
+	input.SetValue(defaultValue)
+	
+	return AdvancedField{
+		Label:       label,
+		Description: description,
+		Model:       input,
+		Field:       fieldType,
+	}
+}
+
+// Helper method to get a specific advanced field by its field type
+func (m *RetroApp) getAdvancedField(field Field) *AdvancedField {
+	for i := range m.advancedFields {
+		if m.advancedFields[i].Field == field {
+			return &m.advancedFields[i]
+		}
+	}
+	return nil
+}
+
+// Helper method to build a tax request with all parameters
+func (m *RetroApp) buildTaxRequest() models.TaxRequest {
+	income, _ := parseFloatWithDefault(m.incomeInput.Value(), 0)
+	
+	// Basic request
+	request := models.TaxRequest{
+		Period:   models.Year,
+		Income:   int(income * 100),
+		TaxClass: models.TaxClass(m.selectedTaxClass),
+	}
+	
+	// Add advanced parameters
+	if field := m.getAdvancedField(AJAHR_Field); field != nil {
+		request.AJAHR, _ = parseIntWithDefault(field.Model.Value(), 0)
+	}
+	
+	if field := m.getAdvancedField(ALTER1_Field); field != nil {
+		request.ALTER1, _ = parseIntWithDefault(field.Model.Value(), 0)
+	}
+	
+	if field := m.getAdvancedField(KRV_Field); field != nil {
+		request.KRV, _ = parseIntWithDefault(field.Model.Value(), 0)
+	}
+	
+	if field := m.getAdvancedField(KVZ_Field); field != nil {
+		request.KVZ, _ = parseFloatWithDefault(field.Model.Value(), 1.3)
+	}
+	
+	if field := m.getAdvancedField(PVS_Field); field != nil {
+		request.PVS, _ = parseIntWithDefault(field.Model.Value(), 0)
+	}
+	
+	if field := m.getAdvancedField(PVZ_Field); field != nil {
+		request.PVZ, _ = parseIntWithDefault(field.Model.Value(), 0)
+	}
+	
+	if field := m.getAdvancedField(R_Field); field != nil {
+		request.R, _ = parseIntWithDefault(field.Model.Value(), 0)
+	}
+	
+	if field := m.getAdvancedField(ZKF_Field); field != nil {
+		request.ZKF, _ = parseFloatWithDefault(field.Model.Value(), 0)
+	}
+	
+	if field := m.getAdvancedField(VBEZ_Field); field != nil {
+		request.VBEZ, _ = parseIntWithDefault(field.Model.Value(), 0)
+	}
+	
+	if field := m.getAdvancedField(VJAHR_Field); field != nil {
+		request.VJAHR, _ = parseIntWithDefault(field.Model.Value(), 0)
+	}
+	
+	if field := m.getAdvancedField(PKPV_Field); field != nil {
+		request.PKPV, _ = parseIntWithDefault(field.Model.Value(), 0)
+	}
+	
+	if field := m.getAdvancedField(PKV_Field); field != nil {
+		request.PKV, _ = parseIntWithDefault(field.Model.Value(), 0)
+	}
+	
+	if field := m.getAdvancedField(PVA_Field); field != nil {
+		request.PVA, _ = parseIntWithDefault(field.Model.Value(), 0)
+	}
+	
+	return request
 }

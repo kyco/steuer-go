@@ -4,88 +4,130 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
-
+	"tax-calculator/internal/tax/bmf"
 	"tax-calculator/internal/tax/views/styles"
 )
 
-func (m *AppModel) renderInputForm() string {
-	header := styles.HeaderStyle.Render("German Tax Calculator")
+// Main View - determines which screen to render
+func (m *RetroApp) View() string {
+	switch m.screen {
+	case MainScreen:
+		return m.renderMainScreen()
+	case AdvancedScreen:
+		return m.renderAdvancedScreen()
+	case ResultsScreen:
+		return m.renderResultsScreen()
+	case ComparisonScreen:
+		return m.renderComparisonScreen()
+	default:
+		return m.renderMainScreen()
+	}
+}
 
-	taxClassTitle := styles.SubtitleStyle.Render("Tax Class:")
-
+// Main screen with minimal, elegant UI
+func (m *RetroApp) renderMainScreen() string {
+	// Create clean, elegant header
+	logoText := "STEUER-GO"
+	header := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(styles.PrimaryColor).
+		Padding(1, 2).
+		Render(logoText)
+	
+	subtitle := lipgloss.NewStyle().
+		Foreground(styles.NeutralColor).
+		Italic(true).
+		Render("German Tax Calculator")
+	
+	// Create the top section with clean spacing
+	topSection := lipgloss.JoinVertical(
+		lipgloss.Center,
+		header,
+		subtitle,
+	)
+	
+	// Tax class selector with icons - cleaner layout
 	var taxClassOptions strings.Builder
-	for i, option := range m.taxClassOptions {
+	
+	// Build styled tax class options with minimal layout
+	taxClassTitle := styles.SubtitleStyle.Render("Tax Class")
+	
+	for _, option := range m.taxClassOptions {
 		classNum := option.Class
 		style := styles.UnselectedItemStyle
 		indicator := "  "
-
+		
 		if classNum == m.selectedTaxClass {
 			style = styles.SelectedItemStyle
-			indicator = "▶ "
+			indicator = "• "
 		}
-
-		if m.focusField == TaxClassField {
-			indicator = "  "
-			if classNum == m.selectedTaxClass {
-				indicator = "▶ "
-			}
-		}
-
-		fmt.Fprintf(&taxClassOptions, "%s%s\n",
+		
+		fmt.Fprintf(&taxClassOptions, "%s%s%s %s\n",
 			indicator,
-			style.Render(fmt.Sprintf("Class %d: %s", classNum, option.Desc)))
-
-		if i >= 2 && classNum != m.selectedTaxClass && classNum != m.selectedTaxClass+1 {
-			continue
-		}
+			option.Icon,
+			style.Render(fmt.Sprintf(" Class %d:", classNum)),
+			style.Render(option.Desc))
 	}
-
-	incomeTitle := styles.SubtitleStyle.Render("Annual Income:")
+	
+	// Income input field - clean styling
+	incomeTitle := styles.SubtitleStyle.Render("Annual Income")
 	incomeField := styles.InputFieldStyle.Render(m.incomeInput.View())
 	if m.focusField == IncomeField {
 		incomeField = styles.ActiveInputStyle.Render(m.incomeInput.View())
 	}
-
-	yearTitle := styles.SubtitleStyle.Render("Tax Year:")
+	
+	// Year input field - clean styling
+	yearTitle := styles.SubtitleStyle.Render("Tax Year")
 	yearField := styles.InputFieldStyle.Render(m.yearInput.View())
 	if m.focusField == YearField {
 		yearField = styles.ActiveInputStyle.Render(m.yearInput.View())
 	}
-
-	calculateButton := styles.ButtonStyle.Render(" Calculate ")
+	
+	// Minimal button styling
+	calculateButton := styles.ButtonStyle.Render(" Calculate Tax ")
 	if m.focusField == CalculateButtonField {
-		calculateButton = styles.SelectedButtonStyle.Render(" Calculate ")
+		calculateButton = styles.SelectedButtonStyle.Render(" Calculate Tax ")
 	}
-
+	
 	advancedButton := styles.ButtonStyle.Render(" Advanced Options ")
 	if m.focusField == AdvancedButtonField {
 		advancedButton = styles.SelectedButtonStyle.Render(" Advanced Options ")
 	}
-
+	
 	buttons := lipgloss.JoinHorizontal(
 		lipgloss.Center,
 		calculateButton,
-		"     ",
+		"  ",
 		advancedButton,
 	)
-
-	errorMsg := ""
-	if m.resultsError != "" {
-		errorMsg = lipgloss.NewStyle().
-			Foreground(styles.DangerColor).
-			Render(m.resultsError)
-	}
-
-	localCalcText := ""
+	
+	// Subtle mode indicator
+	modeText := "Remote Calculation"
 	if m.useLocalCalc {
-		localCalcText = lipgloss.NewStyle().Foreground(styles.SuccessColor).Render(" • Local Calculation: ON")
+		modeText = "Local Calculation"
 	}
-
-	helpText := styles.HelpStyle.Render(fmt.Sprintf("Tab: Next Field • Enter: Select/Calculate • ↑/↓: Navigate Tax Class • l: Toggle Local Calculation%s • Esc: Quit", localCalcText))
-
-	content := lipgloss.JoinVertical(
+	
+	modeIndicator := lipgloss.NewStyle().
+		Foreground(styles.NeutralColor).
+		Bold(true).
+		Italic(true).
+		Render(modeText)
+	
+	// Clean, minimal help text
+	helpText := lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		formatKeyHint("↑/↓", "Change Tax Class"),
+		"  ",
+		formatKeyHint("Tab", "Next Field"),
+		"  ",
+		formatKeyHint("Enter", "Select"),
+		"  ",
+		formatKeyHint("L", "Toggle Local Mode"),
+	)
+	
+	// Main content with proper spacing
+	mainContent := lipgloss.JoinVertical(
 		lipgloss.Left,
 		"",
 		taxClassTitle,
@@ -97,101 +139,147 @@ func (m *AppModel) renderInputForm() string {
 		yearTitle,
 		yearField,
 		"",
-		buttons,
+		lipgloss.JoinHorizontal(lipgloss.Center, buttons),
 		"",
-		errorMsg,
 	)
-
-	formStyle := lipgloss.NewStyle().
-		Border(styles.MinimalBorder).
-		BorderForeground(styles.PrimaryColor).
-		Padding(1, 3)
-
-	formWidth := m.windowSize.Width
-	if formWidth == 0 {
-		formWidth = 100
-	}
-
-	return lipgloss.JoinVertical(
-		lipgloss.Center,
-		header,
-		lipgloss.NewStyle().
-			Width(formWidth).
-			Align(lipgloss.Center).
-			Render(formStyle.Render(content)),
-		"",
-		lipgloss.NewStyle().
-			Width(formWidth).
-			Align(lipgloss.Center).
-			Render(helpText),
-	)
-}
-
-func (m *AppModel) renderResults() string {
-	header := styles.HeaderStyle.Render("German Tax Calculator - Results")
-
-	if m.resultsLoading {
-		spinner := m.spinner.View()
-
-		width := m.windowSize.Width
-		if width == 0 {
-			width = 100
-		}
-
-		loadingContent := lipgloss.JoinVertical(
-			lipgloss.Center,
-			"",
-			lipgloss.NewStyle().
-				Foreground(styles.PrimaryColor).
-				Render("Calculating tax..."),
-			spinner,
-		)
-
-		return lipgloss.JoinVertical(
-			lipgloss.Center,
-			header,
-			lipgloss.NewStyle().
-				Width(width).
-				Align(lipgloss.Center).
-				Render(loadingContent),
-		)
-	}
-
-	if m.resultsError != "" {
-		return lipgloss.JoinVertical(
-			lipgloss.Center,
-			header,
-			"",
-			lipgloss.NewStyle().
-				Foreground(styles.DangerColor).
-				Render("Error:"),
-			lipgloss.NewStyle().
-				Foreground(styles.DangerColor).
-				Render(m.resultsError),
-			"",
-			styles.HelpStyle.Render("Press 'esc' to go back"),
-		)
-	}
-
-	localCalcText := ""
-	if m.useLocalCalc {
-		localCalcText = lipgloss.NewStyle().Foreground(styles.SuccessColor).Render(" • Local Calculation: ON")
-	}
-
-	helpText := styles.HelpStyle.Render(fmt.Sprintf("d: Toggle Details • c: Compare Tax Rates • l: Toggle Local Calculation%s • ↑/↓: Scroll • b: Back • Esc: Quit", localCalcText))
-
+	
+	// Clean container styling
+	formStyle := styles.ContainerStyle
+	
+	// Width handling
 	width := m.windowSize.Width
 	if width == 0 {
 		width = 100
 	}
-
+	
+	// Footer with minimal styling
+	footer := lipgloss.JoinVertical(
+		lipgloss.Center,
+		modeIndicator,
+		"",
+		helpText,
+	)
+	
+	// Combine all elements with clean spacing
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
-		header,
+		"",
+		topSection,
+		"",
 		lipgloss.NewStyle().
 			Width(width).
 			Align(lipgloss.Center).
-			Render(m.resultsViewport.View()),
+			Render(formStyle.Render(mainContent)),
+		"",
+		lipgloss.NewStyle().
+			Width(width).
+			Align(lipgloss.Center).
+			Render(footer),
+	)
+}
+
+// Advanced options screen with minimal styling
+func (m *RetroApp) renderAdvancedScreen() string {
+	// Clean header
+	header := formatTitle("Advanced Tax Parameters")
+	subtitle := lipgloss.NewStyle().
+		Foreground(styles.NeutralColor).
+		Italic(true).
+		Render("Adjust parameters for accurate calculations")
+	
+	// Clean form layout
+	var formContent strings.Builder
+	
+	for i, field := range m.advancedFields {
+		isFocused := m.focusField == field.Field
+		
+		// Simplified styling
+		labelStyle := styles.SubtitleStyle
+		descStyle := lipgloss.NewStyle().
+			Foreground(styles.NeutralColor).
+			Italic(true)
+		
+		inputStyle := styles.InputFieldStyle
+		if isFocused {
+			inputStyle = styles.ActiveInputStyle
+		}
+		
+		// Render with clean spacing
+		formContent.WriteString(labelStyle.Render(field.Label))
+		formContent.WriteString("\n")
+		formContent.WriteString(descStyle.Render(field.Description))
+		formContent.WriteString("\n")
+		formContent.WriteString(inputStyle.Render(field.Model.View()))
+		
+		// Spacing between fields
+		if i < len(m.advancedFields)-1 {
+			formContent.WriteString("\n\n")
+		}
+	}
+	
+	// Minimal button styling
+	backButton := styles.ButtonStyle.Render(" Back ")
+	if m.focusField == BackButtonField {
+		backButton = styles.SelectedButtonStyle.Render(" Back ")
+	}
+	
+	calculateButton := styles.ButtonStyle.Render(" Calculate with Parameters ")
+	if m.focusField == CalculateButtonField {
+		calculateButton = styles.SelectedButtonStyle.Render(" Calculate with Parameters ")
+	}
+	
+	buttons := lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		backButton,
+		"  ",
+		calculateButton,
+	)
+	
+	// Set content with clean layout
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		formContent.String(),
+		"",
+		lipgloss.NewStyle().Align(lipgloss.Center).Render(buttons),
+		"",
+	)
+	
+	m.advancedViewport.SetContent(content)
+	
+	// Clean help text
+	helpText := lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		formatKeyHint("↑/↓", "Scroll"),
+		"  ",
+		formatKeyHint("Tab", "Next Field"),
+		"  ",
+		formatKeyHint("Enter", "Select"),
+	)
+	
+	// Width handling
+	width := m.windowSize.Width
+	if width == 0 {
+		width = 100
+	}
+	
+	// Clean layout with proper spacing
+	return lipgloss.JoinVertical(
+		lipgloss.Center,
+		"",
+		lipgloss.NewStyle().
+			Width(width).
+			Align(lipgloss.Center).
+			Render(lipgloss.JoinVertical(
+				lipgloss.Center,
+				header,
+				subtitle,
+			)),
+		"",
+		lipgloss.NewStyle().
+			Width(width - 10).
+			Align(lipgloss.Center).
+			Render(styles.ContainerStyle.Render(m.advancedViewport.View())),
+		"",
 		lipgloss.NewStyle().
 			Width(width).
 			Align(lipgloss.Center).
@@ -199,64 +287,215 @@ func (m *AppModel) renderResults() string {
 	)
 }
 
-func (m *AppModel) renderComparison() string {
-	header := styles.HeaderStyle.Render("German Tax Calculator - Income Comparison")
-
-	if m.comparisonLoading {
-		width := m.windowSize.Width
-		if width == 0 {
-			width = 100
-		}
-
+// Results screen with minimal, clean tab design
+func (m *RetroApp) renderResultsScreen() string {
+	// Clean loading indicator
+	if m.resultsLoading {
+		spinner := m.spinner.View()
+		
 		loadingContent := lipgloss.JoinVertical(
 			lipgloss.Center,
 			"",
 			lipgloss.NewStyle().
 				Foreground(styles.PrimaryColor).
 				Bold(true).
-				Render("Loading income comparison..."),
+				Render("Computing tax breakdown..."),
+			"",
+			spinner,
 		)
-
+		
+		width := m.windowSize.Width
+		if width == 0 {
+			width = 100
+		}
+		
 		return lipgloss.JoinVertical(
 			lipgloss.Center,
-			header,
+			formatTitle("Tax Calculator"),
+			"",
 			lipgloss.NewStyle().
 				Width(width).
 				Align(lipgloss.Center).
 				Render(loadingContent),
 		)
 	}
-
-	if m.comparisonError != "" {
+	
+	// Clean error display
+	if m.resultsError != "" {
+		errorContent := lipgloss.JoinVertical(
+			lipgloss.Center,
+			"",
+			lipgloss.NewStyle().
+				Foreground(styles.DangerColor).
+				Bold(true).
+				Render("Calculation Error"),
+			"",
+			lipgloss.NewStyle().
+				Foreground(styles.DangerColor).
+				Render(m.resultsError),
+			"",
+			styles.ButtonStyle.Render(" Press Esc to go back "),
+		)
+		
+		width := m.windowSize.Width
+		if width == 0 {
+			width = 100
+		}
+		
 		return lipgloss.JoinVertical(
 			lipgloss.Center,
-			header,
+			formatTitle("Tax Calculator"),
 			"",
 			lipgloss.NewStyle().
-				Foreground(styles.DangerColor).
-				Render("Error:"),
-			lipgloss.NewStyle().
-				Foreground(styles.DangerColor).
-				Render(m.comparisonError),
-			"",
-			styles.HelpStyle.Render("Press 'esc' to go back"),
+				Width(width).
+				Align(lipgloss.Center).
+				Render(errorContent),
 		)
 	}
-
-	helpText := styles.HelpStyle.Render("↑/↓: Scroll • b: Back to Results • Esc: Quit")
-
+	
+	// Calculate tax values
+	income, _ := parseFloatWithDefault(m.incomeInput.Value(), 0)
+	
+	var incomeTax, solidarityTax float64
+	for _, output := range m.result.Outputs.Output {
+		if output.Name == "LSTLZZ" {
+			incomeTax = float64(bmf.MustParseInt(output.Value)) / 100
+		} else if output.Name == "SOLZLZZ" {
+			solidarityTax = float64(bmf.MustParseInt(output.Value)) / 100
+		}
+	}
+	
+	totalTax := incomeTax + solidarityTax
+	netIncome := income - totalTax
+	taxRate := 0.0
+	if income > 0 {
+		taxRate = (totalTax / income) * 100
+	}
+	
+	// Set tab content with clean styling
+	var tabContent string
+	switch m.activeTab {
+	case BasicTab:
+		tabContent = formatTaxResults(income, incomeTax, solidarityTax, totalTax, netIncome, taxRate)
+	
+	case DetailsTab:
+		// Clean detailed view
+		var details strings.Builder
+		
+		// Input parameters
+		details.WriteString(formatSubTitle("Input Parameters"))
+		details.WriteString("\n\n")
+		details.WriteString(formatTableRow("Tax Class:", fmt.Sprintf("%d", m.selectedTaxClass), false))
+		details.WriteString("\n")
+		details.WriteString(formatTableRow("Income:", formatEuro(income), false))
+		details.WriteString("\n")
+		details.WriteString(formatTableRow("Year:", m.yearInput.Value(), false))
+		details.WriteString("\n\n")
+		
+		// Advanced parameters if used
+		details.WriteString(formatSubTitle("Advanced Parameters"))
+		details.WriteString("\n\n")
+		
+		for _, field := range m.advancedFields {
+			details.WriteString(formatTableRow(field.Label+":", field.Model.Value(), false))
+			details.WriteString("\n")
+		}
+		
+		details.WriteString("\n")
+		details.WriteString(formatSubTitle("Raw Calculation Values"))
+		details.WriteString("\n\n")
+		
+		// Show raw output values from the BMF response
+		for _, output := range m.result.Outputs.Output {
+			details.WriteString(formatTableRow(output.Name+":", output.Value, false))
+			details.WriteString("\n")
+		}
+		
+		tabContent = details.String()
+		
+	case AboutTab:
+		// Clean about tab
+		var about strings.Builder
+		about.WriteString(formatSubTitle("About Steuer-Go"))
+		about.WriteString("\n\n")
+		about.WriteString(styles.BaseStyle.Render("A modern German tax calculator built with Go"))
+		about.WriteString("\n\n")
+		about.WriteString(formatSubTitle("Features"))
+		about.WriteString("\n\n")
+		about.WriteString("• Calculates income tax for all tax classes\n")
+		about.WriteString("• Supports basic and advanced tax parameters\n")
+		about.WriteString("• Local calculation mode for offline use\n")
+		about.WriteString("• Tax rate comparison across income levels\n")
+		about.WriteString("• Visualizes tax breakdown\n")
+		about.WriteString("\n")
+		about.WriteString(formatSubTitle("Credits"))
+		about.WriteString("\n\n")
+		about.WriteString("• Interface built with Bubble Tea, Bubbles, and Lip Gloss\n")
+		about.WriteString("• Tax formulas from the German Federal Ministry of Finance\n")
+		
+		tabContent = about.String()
+	}
+	
+	// Set viewport content
+	m.resultsViewport.SetContent(tabContent)
+	
+	// Minimal button styling
+	compareButton := styles.ButtonStyle.Render(" Compare Rates ")
+	backButton := styles.ButtonStyle.Render(" Back ")
+	
+	actions := lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		compareButton,
+		"  ",
+		backButton,
+	)
+	
+	// Clean help text
+	helpText := lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		formatKeyHint("←/→", "Change Tab"),
+		"  ",
+		formatKeyHint("↑/↓", "Scroll"),
+		"  ",
+		formatKeyHint("C", "Compare"),
+		"  ",
+		formatKeyHint("B", "Back"),
+	)
+	
+	// Width handling
 	width := m.windowSize.Width
 	if width == 0 {
 		width = 100
 	}
-
+	
+	// Create simple, elegant tabs
+	tabs := []string{"Basic Results", "Details", "About"}
+	renderedTabs := createTabs(tabs, int(m.activeTab), width)
+	
+	// Clean container styling
+	resultContainer := styles.ResultsContainerStyle.Render(m.resultsViewport.View())
+	
+	// Clean layout with proper spacing
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
-		header,
+		"",
+		formatTitle("Tax Calculation Results"),
+		"",
 		lipgloss.NewStyle().
 			Width(width).
 			Align(lipgloss.Center).
-			Render(m.comparisonViewport.View()),
+			Render(renderedTabs),
+		"",
+		lipgloss.NewStyle().
+			Width(width - 10).
+			Align(lipgloss.Center).
+			Render(resultContainer),
+		"",
+		lipgloss.NewStyle().
+			Width(width).
+			Align(lipgloss.Center).
+			Render(actions),
+		"",
 		lipgloss.NewStyle().
 			Width(width).
 			Align(lipgloss.Center).
@@ -264,144 +503,122 @@ func (m *AppModel) renderComparison() string {
 	)
 }
 
-func (m *AppModel) renderAdvancedInputForm() string {
-	header := styles.HeaderStyle.Render("German Tax Calculator - Advanced Parameters")
-
-	// Helper function to render input fields with descriptions
-	renderInputWithDesc := func(title string, description string, input textinput.Model, isFocused bool) string {
-		titleText := styles.SubtitleStyle.Render(title)
-		descText := lipgloss.NewStyle().
-			Foreground(styles.NeutralColor).
-			Italic(true).
-			Width(60).
-			Render(description)
-
-		style := styles.InputFieldStyle
-		if isFocused {
-			style = styles.ActiveInputStyle
+// Comparison screen with minimal styling
+func (m *RetroApp) renderComparisonScreen() string {
+	// Clean loading display
+	if m.comparisonLoading {
+		spinner := m.spinner.View()
+		
+		loadingContent := lipgloss.JoinVertical(
+			lipgloss.Center,
+			"",
+			lipgloss.NewStyle().
+				Foreground(styles.PrimaryColor).
+				Bold(true).
+				Render("Computing comparison data..."),
+			"",
+			spinner,
+			"",
+			lipgloss.NewStyle().
+				Foreground(styles.NeutralColor).
+				Render(fmt.Sprintf("Progress: %d/%d", m.completedCalls, m.totalCalls)),
+		)
+		
+		width := m.windowSize.Width
+		if width == 0 {
+			width = 100
 		}
-		inputField := style.Render(input.View())
-
+		
 		return lipgloss.JoinVertical(
-			lipgloss.Left,
-			titleText,
-			descText,
-			inputField,
+			lipgloss.Center,
+			formatTitle("Tax Rate Comparison"),
+			"",
+			lipgloss.NewStyle().
+				Width(width).
+				Align(lipgloss.Center).
+				Render(loadingContent),
 		)
 	}
-
-	// Create a single column for all inputs
-	singleColumn := lipgloss.JoinVertical(
-		lipgloss.Left,
-		"",
-		renderInputWithDesc("Year following 64th year:",
-			"Calendar year after taxpayer's 64th birthday. Enter 0 if not applicable.",
-			m.ajahr, m.focusField == AJAHR_Field),
-		"",
-		renderInputWithDesc("Completed 64 years (0/1):",
-			"1 if taxpayer was 64+ at the start of calendar year, otherwise 0.",
-			m.alter1, m.focusField == ALTER1_Field),
-		"",
-		renderInputWithDesc("Social insurance (0-2):",
-			"0: Normal statutory pension, 1: No compulsory insurance, 2: Reduced rate for miners/seamen",
-			m.krv, m.focusField == KRV_Field),
-		"",
-		renderInputWithDesc("Additional health rate (%):",
-			"Additional health insurance rate (usually 0.3-2.2%). Standard is 1.3%.",
-			m.kvz, m.focusField == KVZ_Field),
-		"",
-		renderInputWithDesc("Employer in Saxony (0/1):",
-			"1 if employer is based in Saxony (different nursing care contributions), otherwise 0.",
-			m.pvs, m.focusField == PVS_Field),
-		"",
-		renderInputWithDesc("Childless surcharge (0/1):",
-			"1 if employee (aged 23+) pays childless surcharge for nursing care insurance, otherwise 0.",
-			m.pvz, m.focusField == PVZ_Field),
-		"",
-		renderInputWithDesc("Religion code (0-2):",
-			"0: No church tax, 1: Catholic church, 2: Protestant church",
-			m.r, m.focusField == R_Field),
-		"",
-		renderInputWithDesc("Child allowance:",
-			"Number of children for tax allowance. Can be decimal (0.5 for shared custody).",
-			m.zkf, m.focusField == ZKF_Field),
-		"",
-		renderInputWithDesc("Pension payments (euros):",
-			"Annual pension income in euros. Enter 0 if no pension income.",
-			m.vbez, m.focusField == VBEZ_Field),
-		"",
-		renderInputWithDesc("First pension year:",
-			"Year when taxpayer first started receiving pension. Enter 0 if not applicable.",
-			m.vjahr, m.focusField == VJAHR_Field),
-		"",
-		renderInputWithDesc("Private insurance payment (euros):",
-			"Monthly private health insurance premium in euros. Only for private insurance.",
-			m.pkpv, m.focusField == PKPV_Field),
-		"",
-		renderInputWithDesc("Health insurance type (0-2):",
-			"0: Statutory health insurance, 1: Private without employer subsidy, 2: Private with subsidy",
-			m.pkv, m.focusField == PKV_Field),
-		"",
-		renderInputWithDesc("Children for care insurance (0-4):",
-			"Number of children for reduced nursing care insurance contributions.",
-			m.pva, m.focusField == PVA_Field),
-	)
-
-	backButton := styles.ButtonStyle.Render(" Back ")
-	if m.focusField == BackButtonField {
-		backButton = styles.SelectedButtonStyle.Render(" Back ")
+	
+	// Clean error display
+	if m.comparisonError != "" {
+		errorContent := lipgloss.JoinVertical(
+			lipgloss.Center,
+			"",
+			lipgloss.NewStyle().
+				Foreground(styles.DangerColor).
+				Bold(true).
+				Render("Comparison Error"),
+			"",
+			lipgloss.NewStyle().
+				Foreground(styles.DangerColor).
+				Render(m.comparisonError),
+			"",
+			styles.ButtonStyle.Render(" Press Esc to go back "),
+		)
+		
+		width := m.windowSize.Width
+		if width == 0 {
+			width = 100
+		}
+		
+		return lipgloss.JoinVertical(
+			lipgloss.Center,
+			formatTitle("Tax Rate Comparison"),
+			"",
+			lipgloss.NewStyle().
+				Width(width).
+				Align(lipgloss.Center).
+				Render(errorContent),
+		)
 	}
-
-	calculateButton := styles.ButtonStyle.Render(" Calculate with Advanced Options ")
-	if m.focusField == CalculateButtonField {
-		calculateButton = styles.SelectedButtonStyle.Render(" Calculate with Advanced Options ")
-	}
-
-	buttons := lipgloss.JoinHorizontal(
+	
+	// Format comparison data
+	income, _ := parseFloatWithDefault(m.incomeInput.Value(), 0)
+	comparisonContent := formatComparisonResults(m.comparisonResults, income)
+	
+	// Set content in viewport
+	m.comparisonViewport.SetContent(comparisonContent)
+	
+	// Minimal button styling
+	backButton := styles.ButtonStyle.Render(" Back to Results ")
+	
+	// Clean help text
+	helpText := lipgloss.JoinHorizontal(
 		lipgloss.Center,
-		backButton,
-		"     ",
-		calculateButton,
+		formatKeyHint("↑/↓", "Scroll"),
+		"  ",
+		formatKeyHint("B", "Back to Results"),
 	)
-
-	localCalcText := ""
-	if m.useLocalCalc {
-		localCalcText = lipgloss.NewStyle().Foreground(styles.SuccessColor).Render(" • Local Calculation: ON")
+	
+	// Width handling
+	width := m.windowSize.Width
+	if width == 0 {
+		width = 100
 	}
-
-	// Combine all content
-	content := lipgloss.JoinVertical(
-		lipgloss.Left,
-		"",
-		singleColumn,
-		"",
-		lipgloss.NewStyle().Align(lipgloss.Center).Render(buttons),
-	)
-
-	// Set content to viewport for scrolling - using pointer receiver
-	// Add extra padding at the bottom to ensure there's room to scroll
-	paddedContent := content + "" // Extra padding lines
-	m.advancedViewport.SetContent(paddedContent)
-
-	formWidth := m.windowSize.Width
-	if formWidth == 0 {
-		formWidth = 100
-	}
-
-	helpText := styles.HelpStyle.Render(fmt.Sprintf("↑/↓: Scroll • Tab: Next Field • Enter: Select • l: Toggle Local Calculation%s • Esc: Quit", localCalcText))
-
+	
+	// Clean container styling
+	comparisonContainer := styles.ResultsContainerStyle.Render(m.comparisonViewport.View())
+	
+	// Clean layout with proper spacing
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
-		header,
-		lipgloss.NewStyle().
-			Width(formWidth).
-			Align(lipgloss.Center).
-			Render(m.advancedViewport.View()),
+		"",
+		formatTitle("Tax Rate Comparison"),
 		"",
 		lipgloss.NewStyle().
-			Width(formWidth).
+			Width(width - 10).
+			Align(lipgloss.Center).
+			Render(comparisonContainer),
+		"",
+		lipgloss.NewStyle().
+			Width(width).
+			Align(lipgloss.Center).
+			Render(backButton),
+		"",
+		lipgloss.NewStyle().
+			Width(width).
 			Align(lipgloss.Center).
 			Render(helpText),
 	)
 }
-

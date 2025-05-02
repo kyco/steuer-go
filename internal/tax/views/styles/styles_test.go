@@ -13,14 +13,14 @@ func TestColors(t *testing.T) {
 		actual   lipgloss.Color
 		expected string
 	}{
-		{"PrimaryColor", PrimaryColor, "#82AAFF"},
-		{"SecondaryColor", SecondaryColor, "#C3E88D"},
-		{"AccentColor", AccentColor, "#89DDFF"},
-		{"SuccessColor", SuccessColor, "#C3E88D"},
-		{"DangerColor", DangerColor, "#FF5370"},
-		{"WarningColor", WarningColor, "#FFCB6B"},
-		{"NeutralColor", NeutralColor, "#A9B8E8"},
-		{"BgColor", BgColor, "#0F111A"},
+		{"PrimaryColor", PrimaryColor, "#00AA00"},
+		{"SecondaryColor", SecondaryColor, "#555555"},
+		{"AccentColor", AccentColor, "#00FFFF"},
+		{"SuccessColor", SuccessColor, "#00FF00"},
+		{"DangerColor", DangerColor, "#FF0000"},
+		{"WarningColor", WarningColor, "#FF8800"},
+		{"NeutralColor", NeutralColor, "#AAAAAA"},
+		{"BgColor", BgColor, "#000000"},
 		{"FgColor", FgColor, "#FFFFFF"},
 	}
 
@@ -33,29 +33,29 @@ func TestColors(t *testing.T) {
 
 func TestBorders(t *testing.T) {
 	// Verify the minimal border definition
-	if MinimalBorder.Top != "─" {
-		t.Errorf("Expected MinimalBorder.Top to be '─', got %q", MinimalBorder.Top)
+	if MinimalBorder.Top != "═" {
+		t.Errorf("Expected MinimalBorder.Top to be '═', got %q", MinimalBorder.Top)
 	}
-	if MinimalBorder.Bottom != "─" {
-		t.Errorf("Expected MinimalBorder.Bottom to be '─', got %q", MinimalBorder.Bottom)
+	if MinimalBorder.Bottom != "═" {
+		t.Errorf("Expected MinimalBorder.Bottom to be '═', got %q", MinimalBorder.Bottom)
 	}
-	if MinimalBorder.Left != "│" {
-		t.Errorf("Expected MinimalBorder.Left to be '│', got %q", MinimalBorder.Left)
+	if MinimalBorder.Left != "║" {
+		t.Errorf("Expected MinimalBorder.Left to be '║', got %q", MinimalBorder.Left)
 	}
-	if MinimalBorder.Right != "│" {
-		t.Errorf("Expected MinimalBorder.Right to be '│', got %q", MinimalBorder.Right)
+	if MinimalBorder.Right != "║" {
+		t.Errorf("Expected MinimalBorder.Right to be '║', got %q", MinimalBorder.Right)
 	}
-	if MinimalBorder.TopLeft != "┌" {
-		t.Errorf("Expected MinimalBorder.TopLeft to be '┌', got %q", MinimalBorder.TopLeft)
+	if MinimalBorder.TopLeft != "╔" {
+		t.Errorf("Expected MinimalBorder.TopLeft to be '╔', got %q", MinimalBorder.TopLeft)
 	}
-	if MinimalBorder.TopRight != "┐" {
-		t.Errorf("Expected MinimalBorder.TopRight to be '┐', got %q", MinimalBorder.TopRight)
+	if MinimalBorder.TopRight != "╗" {
+		t.Errorf("Expected MinimalBorder.TopRight to be '╗', got %q", MinimalBorder.TopRight)
 	}
-	if MinimalBorder.BottomLeft != "└" {
-		t.Errorf("Expected MinimalBorder.BottomLeft to be '└', got %q", MinimalBorder.BottomLeft)
+	if MinimalBorder.BottomLeft != "╚" {
+		t.Errorf("Expected MinimalBorder.BottomLeft to be '╚', got %q", MinimalBorder.BottomLeft)
 	}
-	if MinimalBorder.BottomRight != "┘" {
-		t.Errorf("Expected MinimalBorder.BottomRight to be '┘', got %q", MinimalBorder.BottomRight)
+	if MinimalBorder.BottomRight != "╝" {
+		t.Errorf("Expected MinimalBorder.BottomRight to be '╝', got %q", MinimalBorder.BottomRight)
 	}
 }
 

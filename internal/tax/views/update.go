@@ -1,441 +1,513 @@
 package views
 
 import (
-	"fmt"
+	"strings"
+	"time"
+
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+
+	"tax-calculator/internal/tax/calculation"
+	"tax-calculator/internal/tax/models"
 )
 
-func (m *AppModel) Init() tea.Cmd {
-	return textinput.Blink
+func (m *RetroApp) Init() tea.Cmd {
+	// Start the spinner animation
+	return tea.Batch(
+		spinner.Tick,
+		tea.EnterAltScreen,
+	)
 }
 
-func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	switch msg := msg.(type) {
-	case DebugLogMsg:
-		m.debugMessages = append(m.debugMessages, msg.Message)
-		if m.step == ResultsStep {
-			m.updateResultsContent()
+	// Check if any input is currently focused
+	var inputFocused bool
+	
+	// Main screen input fields
+	if m.screen == MainScreen {
+		if m.incomeInput.Focused() || m.yearInput.Focused() {
+			inputFocused = true
 		}
-		
-	case tea.WindowSizeMsg:
-		m.windowSize = msg
-		
-		if m.step == ResultsStep {
-			m.resultsViewport.Width = min(msg.Width-4, 100)
-			m.resultsViewport.Height = msg.Height - 8
-		} else if m.step == ComparisonStep {
-			m.comparisonViewport.Width = min(msg.Width-4, 100)
-			m.comparisonViewport.Height = msg.Height - 8
-		} else if m.step == AdvancedInputStep {
-			m.advancedViewport.Width = min(msg.Width-4, 100)
-			m.advancedViewport.Height = msg.Height - 8
+	}
+	
+	// Advanced screen input fields
+	if m.screen == AdvancedScreen {
+		for _, field := range m.advancedFields {
+			if field.Model.Focused() {
+				inputFocused = true
+				break
+			}
 		}
-		
-	case tea.KeyMsg:
-		switch m.step {
-		case InputStep:
-			switch msg.String() {
-			case "ctrl+c", "esc":
-				return m, tea.Quit
-				
-			case "tab", "shift+tab":
-				if msg.String() == "tab" {
-					m.focusField = (m.focusField + 1) % 5 // Updated to include AdvancedButtonField
-				} else {
-					m.focusField = (m.focusField - 1 + 5) % 5
+	}
+	
+	// Handle special key events when an input is focused
+	if inputFocused {
+		// Special case for Escape key to blur input
+		if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.String() == "esc" {
+			// Blur any focused input fields
+			if m.screen == MainScreen {
+				if m.incomeInput.Focused() {
+					m.incomeInput.Blur()
 				}
-				m.updateFocus()
-				
+				if m.yearInput.Focused() {
+					m.yearInput.Blur()
+				}
+			} else if m.screen == AdvancedScreen {
+				for i, field := range m.advancedFields {
+					if field.Model.Focused() {
+						newModel := field.Model
+						newModel.Blur()
+						m.advancedFields[i].Model = newModel
+					}
+				}
+			}
+			// Continue processing the update
+		} else if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.String() == "enter" {
+			// Blur any focused input fields on Enter
+			if m.screen == MainScreen {
+				if m.incomeInput.Focused() {
+					m.incomeInput.Blur()
+				}
+				if m.yearInput.Focused() {
+					m.yearInput.Blur()
+				}
+			} else if m.screen == AdvancedScreen {
+				for i, field := range m.advancedFields {
+					if field.Model.Focused() {
+						newModel := field.Model
+						newModel.Blur()
+						m.advancedFields[i].Model = newModel
+					}
+				}
+			}
+			// Continue processing the update
+		} else {
+			// Regular input handling when focused
+			// Will be handled by the input update section below
+		}
+	} else {
+		// Regular key handling when no input is focused
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			switch keyMsg.String() {
+			case "ctrl+c", "q":
+				return m, tea.Quit
+	
+			case "esc":
+				switch m.screen {
+				case ResultsScreen, ComparisonScreen, AdvancedScreen:
+					m.screen = MainScreen
+				default:
+					return m, tea.Quit
+				}
+	
+			case "tab", "shift+tab":
+				// Handle tab navigation across fields
+				m.handleTabNavigation(keyMsg.String() == "shift+tab")
+	
 			case "up", "down":
-				if m.focusField == TaxClassField {
-					if msg.String() == "up" {
-						m.selectedTaxClass = max(1, m.selectedTaxClass-1)
-					} else {
-						m.selectedTaxClass = min(6, m.selectedTaxClass+1)
-					}
-				}
-				
-			case "l":
-				// Toggle local calculation mode
-				m.useLocalCalc = !m.useLocalCalc
-				m.debugMessages = append(m.debugMessages, fmt.Sprintf("Local calculation mode: %v", m.useLocalCalc))
-				
+				// Handle up/down navigation
+				m.handleUpDownNavigation(keyMsg.String() == "up")
+	
+			case "left", "right":
+				// Handle left/right navigation
+				m.handleLeftRightNavigation(keyMsg.String() == "left")
+	
 			case "enter":
-				if m.focusField == CalculateButtonField {
-					valid, errMsg := m.validateAndCalculate()
-					if valid {
-						m.step = ResultsStep
-						m.resultsLoading = true
-						
-						income := parseIncome(m.incomeInput.Value())
-						cmds = append(cmds, m.spinner.Tick)
-						cmds = append(cmds, PerformCalculationCmd(m.selectedTaxClass, income, m.yearInput.Value()))
-					} else {
-						m.resultsError = errMsg
-					}
-				} else if m.focusField == AdvancedButtonField {
-					// Switch to advanced options screen
-					m.step = AdvancedInputStep
-					m.focusField = AJAHR_Field
-					m.updateFocus()
-					// Reset viewport to top
-					m.advancedViewport.SetYOffset(0)
-				} else {
-					m.focusField = (m.focusField + 1) % 5
-					m.updateFocus()
+				// Handle enter key selection
+				cmd := m.handleEnterSelection()
+				if cmd != nil {
+					cmds = append(cmds, cmd)
 				}
-			}
-			
-		case AdvancedInputStep:
-			switch msg.String() {
-			case "ctrl+c", "esc":
-				m.step = InputStep
-				return m, nil
-				
-			case "tab", "shift+tab":
-				// Store current focused field
-				// Previous field no longer needed
-
-				if msg.String() == "tab" {
-					// Forward tabbing
-					newField := int(m.focusField) + 1
-					if newField > int(BackButtonField) {
-						newField = int(AJAHR_Field)
-					}
-					m.focusField = Field(newField)
-				} else {
-					// Backward tabbing
-					newField := int(m.focusField) - 1
-					if newField < int(AJAHR_Field) {
-						newField = int(BackButtonField)
-					}
-					m.focusField = Field(newField)
-				}
-				m.updateFocus()
-				
-				// Use direct field scrolling for more precise positioning
-				m.scrollToField(m.focusField)
-				
-			case "enter":
-				if m.focusField == BackButtonField {
-					m.step = InputStep
-					m.focusField = TaxClassField
-					m.updateFocus()
-				} else if m.focusField == CalculateButtonField {
-					valid, errMsg := m.validateAndCalculate()
-					if valid {
-						m.step = ResultsStep
-						m.resultsLoading = true
-						
-						income := parseIncome(m.incomeInput.Value())
-						cmds = append(cmds, m.spinner.Tick)
-						
-						// Extract advanced parameters using our helper function
-						advancedParams := GetAdvancedParametersFromModel(m)
-						
-						cmds = append(cmds, PerformCalculationWithAdvancedOptionsCmd(
-							m.selectedTaxClass, income, m.yearInput.Value(), 
-							advancedParams,
-							m.useLocalCalc,
-						))
-					} else {
-						m.resultsError = errMsg
-					}
-				} else {
-					// Store current focused field
-					// Previous field no longer needed
-					
-					// Move to the next field when pressing enter
-					newField := int(m.focusField) + 1
-					if newField > int(BackButtonField) {
-						newField = int(AJAHR_Field)
-					}
-					m.focusField = Field(newField)
-					m.updateFocus()
-					
-					// First update focus, then explicitly scroll to ensure visibility
-					m.scrollToField(m.focusField)
-				}
-			
-			// Handle up/down, pageup/pagedown in advanced view
-			case "up", "down", "pageup", "pagedown", "home", "end":
-				// Let the viewport handle these directly
-				var cmd tea.Cmd
-				m.advancedViewport, cmd = m.advancedViewport.Update(msg)
-				cmds = append(cmds, cmd)
-			}
-		
-		case ResultsStep:
-			switch msg.String() {
-			case "esc", "q", "b":
-				m.step = InputStep
-				m.resultsLoading = false
-				m.resultsError = ""
-				return m, nil
-				
-			case "d":
-				m.showDetails = !m.showDetails
-				m.updateResultsContent()
-			
+	
 			case "l":
+				// Toggle local calculation
 				m.useLocalCalc = !m.useLocalCalc
-				return m, CaptureDebugCmd(fmt.Sprintf("Local calculation mode: %v", m.useLocalCalc))
-			
+	
 			case "c":
-				m.step = ComparisonStep
-				m.comparisonLoading = true
-				m.comparisonResults = nil
-				m.completedCalls = 0
-				m.totalCalls = 0
-				
-				cmds = append(cmds, m.spinner.Tick)
-				cmds = append(cmds, PerformComparisonCmd())
-				
-			case "ctrl+c":
-				return m, tea.Quit
+				// Start comparison mode from results screen
+				if m.screen == ResultsScreen {
+					m.screen = ComparisonScreen
+					m.comparisonLoading = true
+					cmds = append(cmds, m.startComparisonCmd())
+				}
+	
+			case "b":
+				// Go back from comparison to results
+				if m.screen == ComparisonScreen {
+					m.screen = ResultsScreen
+				} else if m.screen == ResultsScreen {
+					m.screen = MainScreen
+				}
+	
+			case "d":
+				// Toggle details in results
+				if m.screen == ResultsScreen {
+					m.showDetails = !m.showDetails
+				}
 			}
-			
-		case ComparisonStep:
-			switch msg.String() {
-			case "esc", "q", "b":
-				m.step = ResultsStep
-				return m, nil
-				
-			case "ctrl+c":
-				return m, tea.Quit
-			}
-		}
-		
-	case CalculationStartedMsg:
-		cmds = append(cmds, FetchResultsWithModeCmd(m.selectedTaxClass, parseIncome(m.incomeInput.Value()), m.useLocalCalc))
-		
-	case CalculationMsg:
-		m.resultsLoading = false
-		if msg.Error != nil {
-			m.resultsError = msg.Error.Error()
-		} else {
-			m.result = msg.Result
-			m.updateResultsContent()
-		}
-		
-	case ComparisonStartedMsg:
-		m.comparisonLoading = true
-		m.totalCalls = 0
-		m.completedCalls = 0
-		m.comparisonResults = nil
-		m.debugMessages = []string{}
-		cmds = append(cmds, FetchComparisonCmd(m.selectedTaxClass, parseIncome(m.incomeInput.Value())))
-		
-	case ComparisonProgressMsg:
-		m.completedCalls = msg.CompletedCalls
-		m.totalCalls = msg.TotalCalls
-		
-	case ComparisonMsg:
-		m.comparisonLoading = false
-		if msg.Error != nil {
-			m.comparisonError = msg.Error.Error()
-		} else {
-			m.comparisonResults = msg.Results
-			if len(msg.Results) > 0 {
-				m.updateComparisonContent()
-			}
-		}
-		
-	case spinner.TickMsg:
-		if m.resultsLoading || m.comparisonLoading {
-			var cmd tea.Cmd
-			m.spinner, cmd = m.spinner.Update(msg)
-			cmds = append(cmds, cmd)
 		}
 	}
 
-	if m.step == InputStep {
-		switch m.focusField {
-		case IncomeField:
-			newIncomeInput, cmd := m.incomeInput.Update(msg)
-			m.incomeInput = newIncomeInput
-			cmds = append(cmds, cmd)
-		case YearField:
-			newYearInput, cmd := m.yearInput.Update(msg)
-			m.yearInput = newYearInput
-			cmds = append(cmds, cmd)
-		}
-	} else if m.step == AdvancedInputStep {
-		// Handle input for advanced fields based on focus
-		var cmd tea.Cmd
-		switch m.focusField {
-		case AJAHR_Field:
-			m.ajahr, cmd = m.ajahr.Update(msg)
-			cmds = append(cmds, cmd)
-		case ALTER1_Field:
-			m.alter1, cmd = m.alter1.Update(msg)
-			cmds = append(cmds, cmd)
-		case KRV_Field:
-			m.krv, cmd = m.krv.Update(msg)
-			cmds = append(cmds, cmd)
-		case KVZ_Field:
-			m.kvz, cmd = m.kvz.Update(msg)
-			cmds = append(cmds, cmd)
-		case PVS_Field:
-			m.pvs, cmd = m.pvs.Update(msg)
-			cmds = append(cmds, cmd)
-		case PVZ_Field:
-			m.pvz, cmd = m.pvz.Update(msg)
-			cmds = append(cmds, cmd)
-		case R_Field:
-			m.r, cmd = m.r.Update(msg)
-			cmds = append(cmds, cmd)
-		case ZKF_Field:
-			m.zkf, cmd = m.zkf.Update(msg)
-			cmds = append(cmds, cmd)
-		case VBEZ_Field:
-			m.vbez, cmd = m.vbez.Update(msg)
-			cmds = append(cmds, cmd)
-		case VJAHR_Field:
-			m.vjahr, cmd = m.vjahr.Update(msg)
-			cmds = append(cmds, cmd)
-		case PKPV_Field:
-			m.pkpv, cmd = m.pkpv.Update(msg)
-			cmds = append(cmds, cmd)
-		case PKV_Field:
-			m.pkv, cmd = m.pkv.Update(msg)
-			cmds = append(cmds, cmd)
-		case PVA_Field:
-			m.pva, cmd = m.pva.Update(msg)
-			cmds = append(cmds, cmd)
-		}
-	} else if m.step == ResultsStep {
-		var cmd tea.Cmd
-		m.resultsViewport, cmd = m.resultsViewport.Update(msg)
+	// Handle other message types
+	switch msgType := msg.(type) {
+	case tea.WindowSizeMsg:
+		// Store window size for responsive layouts
+		m.windowSize = msgType
+		m.updateViewportDimensions(msgType)
+
+	case spinner.TickMsg:
+		// Update spinner animation
+		newSpinner, cmd := m.spinner.Update(msg)
+		m.spinner = newSpinner
 		cmds = append(cmds, cmd)
-	} else if m.step == ComparisonStep {
-		var cmd tea.Cmd
-		m.comparisonViewport, cmd = m.comparisonViewport.Update(msg)
+
+	case CalculationStartedMsg:
+		// When calculation starts
+		m.resultsLoading = true
+		m.screen = ResultsScreen
+		m.useLocalCalc = msgType.UseLocalCalculator
+
+	case CalculationMsg:
+		// When calculation completes
+		m.resultsLoading = false
+		
+		if msgType.Error != nil {
+			m.resultsError = msgType.Error.Error()
+		} else {
+			m.result = msgType.Result
+			m.resultsError = ""
+		}
+
+	case ComparisonStartedMsg:
+		// When comparison starts
+		m.comparisonLoading = true
+		m.completedCalls = 0
+		m.totalCalls = 0
+
+	case ComparisonProgressMsg:
+		// Update comparison progress
+		m.completedCalls = msgType.CompletedCalls
+		m.totalCalls = msgType.TotalCalls
+
+	case ComparisonMsg:
+		// When comparison completes
+		m.comparisonLoading = false
+		
+		if msgType.Error != nil {
+			m.comparisonError = msgType.Error.Error()
+		} else {
+			m.comparisonResults = msgType.Results
+			m.comparisonError = ""
+		}
+
+	case DebugLogMsg:
+		// Skip debug messages in this UI
+	}
+
+	// Handle viewport updates
+	switch m.screen {
+	case ResultsScreen:
+		newViewport, cmd := m.resultsViewport.Update(msg)
+		m.resultsViewport = newViewport
 		cmds = append(cmds, cmd)
+	
+	case ComparisonScreen:
+		newViewport, cmd := m.comparisonViewport.Update(msg)
+		m.comparisonViewport = newViewport
+		cmds = append(cmds, cmd)
+	
+	case AdvancedScreen:
+		newViewport, cmd := m.advancedViewport.Update(msg)
+		m.advancedViewport = newViewport
+		cmds = append(cmds, cmd)
+	}
+
+	// Always update input fields regardless of focus state
+	if m.screen == MainScreen {
+		// Always update income field
+		newIncomeInput, incomeCmd := m.incomeInput.Update(msg)
+		m.incomeInput = newIncomeInput
+		if incomeCmd != nil {
+			cmds = append(cmds, incomeCmd)
+		}
+		
+		// Always update year field
+		newYearInput, yearCmd := m.yearInput.Update(msg)
+		m.yearInput = newYearInput
+		if yearCmd != nil {
+			cmds = append(cmds, yearCmd)
+		}
+	}
+	
+	// Always update all advanced fields
+	if m.screen == AdvancedScreen {
+		for i, field := range m.advancedFields {
+			newModel, cmd := field.Model.Update(msg)
+			m.advancedFields[i].Model = newModel
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
-// scrollToAdvancedField adjusts the viewport to show the focused field
-func (m *AppModel) scrollToAdvancedField(prevField, newField Field) {
-	// Map fields to their precise vertical positions in the rendered content
-	// These values are carefully calibrated to match the actual rendered positions
-	fieldPositions := []int{
-		15,     // AJAHR_Field
-		30,     // ALTER1_Field
-		45,     // KRV_Field
-		60,     // KVZ_Field
-		75,     // PVS_Field
-		90,     // PVZ_Field
-		105,    // R_Field
-		120,    // ZKF_Field
-		135,    // VBEZ_Field
-		150,    // VJAHR_Field
-		165,    // PKPV_Field
-		180,    // PKV_Field
-		195,    // PVA_Field
-		215,    // BackButtonField
-		220,    // CalculateButtonField - slightly below BackButtonField
+// Handle tab navigation across input fields
+func (m *RetroApp) handleTabNavigation(isBackward bool) {
+	switch m.screen {
+	case MainScreen:
+		fields := []Field{TaxClassField, IncomeField, YearField, CalculateButtonField, AdvancedButtonField}
+		m.navigateFields(fields, isBackward)
+
+	case AdvancedScreen:
+		var fields []Field
+		for _, field := range m.advancedFields {
+			fields = append(fields, field.Field)
+		}
+		fields = append(fields, BackButtonField, CalculateButtonField)
+		m.navigateFields(fields, isBackward)
 	}
-	
-	// Get field index for position lookup
-	newIndex := int(newField) - int(AJAHR_Field)
-	
-	// Check bounds
-	if newIndex < 0 || newIndex >= len(fieldPositions) {
+}
+
+// Helper for field navigation
+func (m *RetroApp) navigateFields(fields []Field, isBackward bool) {
+	currentIdx := -1
+	for i, field := range fields {
+		if field == m.focusField {
+			currentIdx = i
+			break
+		}
+	}
+
+	if currentIdx == -1 {
+		m.focusField = fields[0]
 		return
 	}
-	
-	// Get the position of the new field
-	newPos := fieldPositions[newIndex]
-	
-	// Calculate viewport parameters
-	viewportHeight := m.advancedViewport.Height
-	currentOffset := m.advancedViewport.YOffset
-	
-	// Calculate the visible range
-	visibleStart := currentOffset
-	visibleEnd := currentOffset + viewportHeight - 10 // Margin for visibility
-	
-	// If the field is not visible, adjust scrolling
-	if newPos < visibleStart+5 || newPos > visibleEnd {
-		// Calculate ideal scroll position to center field in viewport
-		idealScrollPos := max(0, newPos - (viewportHeight / 2))
-		
-		// For button fields (near bottom), make sure they appear in the lower part of the viewport
-		if newField == BackButtonField || newField == CalculateButtonField {
-			// Center the buttons in the bottom half of the screen instead of scrolling all the way
-			idealScrollPos = max(0, newPos - (viewportHeight * 3/4))
+
+	if isBackward {
+		currentIdx--
+		if currentIdx < 0 {
+			currentIdx = len(fields) - 1
+		}
+	} else {
+		currentIdx++
+		if currentIdx >= len(fields) {
+			currentIdx = 0
+		}
+	}
+
+	m.focusField = fields[currentIdx]
+}
+
+// Handle up/down navigation
+func (m *RetroApp) handleUpDownNavigation(isUp bool) {
+	switch m.screen {
+	case MainScreen:
+		if m.focusField == TaxClassField {
+			// Tax class selection
+			if isUp {
+				m.selectedTaxClass--
+				if m.selectedTaxClass < 1 {
+					m.selectedTaxClass = 6
+				}
+			} else {
+				m.selectedTaxClass++
+				if m.selectedTaxClass > 6 {
+					m.selectedTaxClass = 1
+				}
+			}
+		}
+
+	case ResultsScreen:
+		if isUp {
+			m.resultsViewport.LineUp(1)
+		} else {
+			m.resultsViewport.LineDown(1)
+		}
+
+	case ComparisonScreen:
+		if isUp {
+			m.comparisonViewport.LineUp(1)
+		} else {
+			m.comparisonViewport.LineDown(1)
+		}
+
+	case AdvancedScreen:
+		if isUp {
+			m.advancedViewport.LineUp(1)
+		} else {
+			m.advancedViewport.LineDown(1)
+		}
+	}
+}
+
+// Handle left/right navigation
+func (m *RetroApp) handleLeftRightNavigation(isLeft bool) {
+	if m.screen == ResultsScreen {
+		if isLeft {
+			m.activeTab--
+			if m.activeTab < 0 {
+				m.activeTab = AboutTab
+			}
+		} else {
+			m.activeTab++
+			if m.activeTab > AboutTab {
+				m.activeTab = BasicTab
+			}
+		}
+	}
+}
+
+// Handle enter key selection
+func (m *RetroApp) handleEnterSelection() tea.Cmd {
+	switch m.screen {
+	case MainScreen:
+		switch m.focusField {
+		case IncomeField:
+			// Focus the income input field
+			m.incomeInput.Focus()
+			return textinput.Blink
+		case YearField:
+			// Focus the year input field
+			m.yearInput.Focus()
+			return textinput.Blink
+		case CalculateButtonField:
+			return m.startCalculationCmd()
+		case AdvancedButtonField:
+			m.screen = AdvancedScreen
+			m.focusField = AJAHR_Field
+		}
+
+	case AdvancedScreen:
+		// Handle advanced field selection
+		for i, field := range m.advancedFields {
+			if field.Field == m.focusField {
+				// Focus this input field
+				newModel := field.Model
+				newModel.Focus()
+				m.advancedFields[i].Model = newModel
+				return textinput.Blink
+			}
 		}
 		
-		// Apply the scroll position
-		m.advancedViewport.SetYOffset(idealScrollPos)
+		switch m.focusField {
+		case BackButtonField:
+			m.screen = MainScreen
+			m.focusField = TaxClassField
+		case CalculateButtonField:
+			return m.startAdvancedCalculationCmd()
+		}
 	}
+
+	return nil
 }
 
-// scrollToField ensures a specific field is visible in the viewport
-func (m *AppModel) scrollToField(field Field) {
-	// This is used for direct field scrolling
-	if m.step != AdvancedInputStep {
-		return
+// Update viewport dimensions when window size changes
+func (m *RetroApp) updateViewportDimensions(msg tea.WindowSizeMsg) {
+	width := msg.Width - 20 // margin for borders
+	height := msg.Height - 20 // margin for header/footer
+	
+	if width < 20 {
+		width = 20
 	}
 	
-	// Map of exact field positions
-	fieldPositions := map[Field]int{
-		AJAHR_Field:           15,
-		ALTER1_Field:          30,
-		KRV_Field:             45,
-		KVZ_Field:             60,
-		PVS_Field:             75,
-		PVZ_Field:             90,
-		R_Field:               105,
-		ZKF_Field:             120,
-		VBEZ_Field:            135,
-		VJAHR_Field:           150,
-		PKPV_Field:            165,
-		PKV_Field:             180,
-		PVA_Field:             195,
-		BackButtonField:       215,
-		CalculateButtonField:  220,
+	if height < 10 {
+		height = 10
 	}
 	
-	// Get position for requested field
-	position, ok := fieldPositions[field]
-	if !ok {
-		return
-	}
+	m.resultsViewport.Width = width
+	m.resultsViewport.Height = height
 	
-	// Calculate viewport dimensions
-	viewportHeight := m.advancedViewport.Height
+	m.comparisonViewport.Width = width
+	m.comparisonViewport.Height = height
 	
-	// Center the field in the viewport
-	idealOffset := max(0, position - (viewportHeight / 2))
-	
-	// For buttons at bottom, position them in lower part of viewport
-	if field == BackButtonField || field == CalculateButtonField {
-		idealOffset = max(0, position - (viewportHeight * 3/4))
-	}
-	
-	// Apply the scroll position
-	m.advancedViewport.SetYOffset(idealOffset)
+	m.advancedViewport.Width = width
+	m.advancedViewport.Height = height
 }
 
-func (m *AppModel) View() string {
-	switch m.step {
-	case InputStep:
-		return m.renderInputForm()
-	case AdvancedInputStep:
-		return m.renderAdvancedInputForm()
-	case ResultsStep:
-		return m.renderResults()
-	case ComparisonStep:
-		return m.renderComparison()
-	default:
-		return "Loading..."
+// Start tax calculation command
+func (m *RetroApp) startCalculationCmd() tea.Cmd {
+	income, err := parseFloatWithDefault(m.incomeInput.Value(), 0)
+	if err != nil || income <= 0 {
+		return func() tea.Msg {
+			return CalculationMsg{
+				Error: err,
+			}
+		}
 	}
+
+	year := m.yearInput.Value()
+	if strings.TrimSpace(year) == "" {
+		year = time.Now().Format("2006")
+	}
+
+	// Use the proper calculation mode based on local flag
+	return PerformCalculationWithAdvancedOptionsCmd(
+		m.selectedTaxClass,
+		income,
+		year,
+		models.TaxRequest{}, // Empty tax request with default values
+		m.useLocalCalc,      // Pass the local calculator flag
+	)
+}
+
+// Start advanced tax calculation command
+func (m *RetroApp) startAdvancedCalculationCmd() tea.Cmd {
+	income, err := parseFloatWithDefault(m.incomeInput.Value(), 0)
+	if err != nil || income <= 0 {
+		return func() tea.Msg {
+			return CalculationMsg{
+				Error: err,
+			}
+		}
+	}
+
+	year := m.yearInput.Value()
+	if strings.TrimSpace(year) == "" {
+		year = time.Now().Format("2006")
+	}
+
+	// Build the tax request from advanced fields
+	taxRequest := m.buildTaxRequest()
+
+	return PerformCalculationWithAdvancedOptionsCmd(
+		m.selectedTaxClass,
+		income,
+		year,
+		taxRequest,
+		m.useLocalCalc,
+	)
+}
+
+// Start comparison command
+func (m *RetroApp) startComparisonCmd() tea.Cmd {
+	income, err := parseFloatWithDefault(m.incomeInput.Value(), 0)
+	if err != nil || income <= 0 {
+		return func() tea.Msg {
+			return ComparisonMsg{
+				Error: err,
+			}
+		}
+	}
+
+	// Create a command for comparison calculations
+	return tea.Sequence(
+		func() tea.Msg {
+			return ComparisonStartedMsg{}
+		},
+		func() tea.Msg {
+			// Create the tax service
+			taxService := calculation.NewTaxService()
+			if m.useLocalCalc {
+				taxService.EnableLocalCalculator()
+			}
+
+			// Run the calculation with progress updates
+			return FetchComparisonCmd(m.selectedTaxClass, income)()
+		},
+	)
 }

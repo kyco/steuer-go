@@ -32,9 +32,25 @@ type ComparisonMsg struct {
 
 func PerformCalculationCmd(taxClass int, income float64, year string) tea.Cmd {
 	return func() tea.Msg {
-		return CalculationStartedMsg{
-			UseLocalCalculator: false,
-		}
+		// First send the calculation started message, then proceed with actual calculation
+		return tea.Batch(
+			func() tea.Msg {
+				return CalculationStartedMsg{
+					UseLocalCalculator: false,
+				}
+			},
+			func() tea.Msg {
+				// Convert basic parameters to tax request
+				taxRequest := models.TaxRequest{
+					Period:   models.Year,
+					Income:   int(income * 100),
+					TaxClass: models.TaxClass(taxClass),
+				}
+
+				// Then perform the actual calculation
+				return FetchResultsWithAdvancedParamsCmd(taxRequest, false)()
+			},
+		)()
 	}
 }
 
