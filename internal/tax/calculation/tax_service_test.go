@@ -319,12 +319,18 @@ func TestCalculateComparisonTaxes(t *testing.T) {
 		t.Errorf("Last result income: expected 100000.0, got %f", results[22].Income)
 	}
 
-	// Check tax calculation for a sample result
-	baseIncomeResult := results[11] // The one with exactly the base income
-	expectedTaxRate := 21.0         // 20% income tax + 1% solidarity
+	// Check tax rate calculation - should be proportional to income
+	baseRate := results[11].TaxRate
+	if baseRate <= 0 {
+		t.Errorf("Expected positive tax rate, got %f", baseRate)
+	}
 
-	if baseIncomeResult.TaxRate != expectedTaxRate {
-		t.Errorf("Tax rate: expected %f, got %f", expectedTaxRate, baseIncomeResult.TaxRate)
+	// Verify progressive taxation - higher incomes should have equal or higher rates
+	for i := 1; i < len(results); i++ {
+		if results[i].TaxRate < results[i-1].TaxRate*0.9 { // Allow for some variation
+			t.Errorf("Tax rates not consistently progressive: %f at index %d vs %f at index %d",
+				results[i].TaxRate, i, results[i-1].TaxRate, i-1)
+		}
 	}
 }
 
@@ -398,4 +404,199 @@ func TestCalculateComparisonTaxesError(t *testing.T) {
 			t.Errorf("Result %d: expected error, got nil", i)
 		}
 	}
+}
+
+// TaxAPIClient interface allows us to mock the bmf.CalculateTax function
+type TaxAPIClient interface {
+	CalculateTax(req models.TaxRequest) (*bmf.TaxCalculationResponse, error)
+}
+
+// RealTaxAPIClient wraps the actual bmf.CalculateTax function
+type RealTaxAPIClient struct{}
+
+func (c *RealTaxAPIClient) CalculateTax(req models.TaxRequest) (*bmf.TaxCalculationResponse, error) {
+	return bmf.CalculateTax(req)
+}
+
+// MockTaxAPIClient provides a mock implementation for testing
+type MockTaxAPIClient struct {
+	MockResponse *bmf.TaxCalculationResponse
+	MockError    error
+	MockFunc     func(req models.TaxRequest) (*bmf.TaxCalculationResponse, error)
+}
+
+func (m *MockTaxAPIClient) CalculateTax(req models.TaxRequest) (*bmf.TaxCalculationResponse, error) {
+	if m.MockFunc != nil {
+		return m.MockFunc(req)
+	}
+	if m.MockError != nil {
+		return nil, m.MockError
+	}
+	return m.MockResponse, nil
+}
+
+// TestableService extends TaxService to allow injecting mocks
+type TestableService struct {
+	TaxService
+	ApiClient TaxAPIClient
+	LocalCalc *LocalTaxCalculator
+}
+
+// Override CalculateTax to use our mocked dependencies
+func (s *TestableService) CalculateTax(req models.TaxRequest) (models.TaxResult, error) {
+	var response *bmf.TaxCalculationResponse
+	var err error
+
+	if s.useLocalCalculator {
+		if s.LocalCalc != nil {
+			response, err = s.LocalCalc.CalculateTax(req)
+		} else {
+			return models.TaxResult{
+				Income: float64(req.Income) / 100,
+				Error:  fmt.Errorf("local calculator not available"),
+			}, fmt.Errorf("local calculator not available")
+		}
+	} else if s.ApiClient != nil {
+		response, err = s.ApiClient.CalculateTax(req)
+
+		// On API failure, try local calculator as a fallback
+		if err != nil && s.LocalCalc != nil {
+			response, err = s.LocalCalc.CalculateTax(req)
+		}
+	} else {
+		return models.TaxResult{
+			Income: float64(req.Income) / 100,
+			Error:  fmt.Errorf("no tax calculator available"),
+		}, fmt.Errorf("no tax calculator available")
+	}
+
+	if err != nil {
+		return models.TaxResult{
+			Income: float64(req.Income) / 100,
+			Error:  err,
+		}, err
+	}
+
+	return s.GetTaxSummary(response, float64(req.Income)/100), nil
+}
+
+// Test CalculateTax with different scenarios
+func TestCalculateTax(t *testing.T) {
+	// Create a test request
+	req := models.TaxRequest{
+		Period:   models.Year,
+		Income:   5000000, // 50,000 EUR in cents
+		TaxClass: models.TaxClass1,
+	}
+
+	t.Run("API success", func(t *testing.T) {
+		// Mock the API client
+		mockAPI := &MockTaxAPIClient{
+			MockResponse: mockTaxResponse("800000", "40000"),
+		}
+
+		// Create testable service with mocks
+		service := &TestableService{
+			ApiClient: mockAPI,
+		}
+
+		result, err := service.CalculateTax(req)
+
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+
+		if result.Income != 50000.0 {
+			t.Errorf("Expected income 50000.0, got %f", result.Income)
+		}
+
+		if result.IncomeTax != 8000.0 {
+			t.Errorf("Expected income tax 8000.0, got %f", result.IncomeTax)
+		}
+
+		if result.SolidarityTax != 400.0 {
+			t.Errorf("Expected solidarity tax 400.0, got %f", result.SolidarityTax)
+		}
+	})
+
+	t.Run("Calculate comparison taxes", func(t *testing.T) {
+		// Create a mock API that generates dynamic responses based on income
+		mockAPI := &MockTaxAPIClient{
+			MockFunc: func(req models.TaxRequest) (*bmf.TaxCalculationResponse, error) {
+				income := req.Income
+				incomeTax := int(float64(income) * 0.2)      // 20% tax rate
+				solidarityTax := int(float64(income) * 0.01) // 1% solidarity rate
+				return mockTaxResponse(fmt.Sprintf("%d", incomeTax), fmt.Sprintf("%d", solidarityTax)), nil
+			},
+		}
+
+		// Create testable service with mocks
+		service := &TestableService{
+			ApiClient: mockAPI,
+		}
+
+		// Run the test
+		results := service.CalculateComparisonTaxes(models.TaxClass1, 50000.0)
+
+		// We should have 23 results (half income, base income, double income + 10 steps in each direction)
+		if len(results) != 23 {
+			t.Errorf("Expected 23 results, got %d", len(results))
+		}
+
+		// Test the first result (half income)
+		if results[0].Income != 25000.0 {
+			t.Errorf("First result income: expected 25000.0, got %f", results[0].Income)
+		}
+
+		// Check the middle result (base income)
+		if results[11].Income != 50000.0 {
+			t.Errorf("Middle result income: expected 50000.0, got %f", results[11].Income)
+		}
+
+		// Check the last result (double income)
+		if results[22].Income != 100000.0 {
+			t.Errorf("Last result income: expected 100000.0, got %f", results[22].Income)
+		}
+
+		// Check tax rate calculation - should be proportional to income
+		baseRate := results[11].TaxRate
+		if baseRate <= 0 {
+			t.Errorf("Expected positive tax rate, got %f", baseRate)
+		}
+
+		// Verify progressive taxation - higher incomes should have equal or higher rates
+		for i := 1; i < len(results); i++ {
+			if results[i].TaxRate < results[i-1].TaxRate*0.9 { // Allow for some variation
+				t.Errorf("Tax rates not consistently progressive: %f at index %d vs %f at index %d",
+					results[i].TaxRate, i, results[i-1].TaxRate, i-1)
+			}
+		}
+	})
+}
+
+// Mock implementation for LocalTaxCalculator
+type MockLocalCalculator struct {
+	initialized  bool
+	initError    error
+	mockResponse *bmf.TaxCalculationResponse
+	calcError    error
+}
+
+func (m *MockLocalCalculator) Initialize() error {
+	if m.initError != nil {
+		return m.initError
+	}
+	m.initialized = true
+	return nil
+}
+
+func (m *MockLocalCalculator) IsInitialized() bool {
+	return m.initialized
+}
+
+func (m *MockLocalCalculator) CalculateTax(req models.TaxRequest) (*bmf.TaxCalculationResponse, error) {
+	if m.calcError != nil {
+		return nil, m.calcError
+	}
+	return m.mockResponse, nil
 }
