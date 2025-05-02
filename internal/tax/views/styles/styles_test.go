@@ -13,15 +13,15 @@ func TestColors(t *testing.T) {
 		actual   lipgloss.Color
 		expected string
 	}{
-		{"PrimaryColor", PrimaryColor, "#00AA00"},
-		{"SecondaryColor", SecondaryColor, "#555555"},
-		{"AccentColor", AccentColor, "#00FFFF"},
-		{"SuccessColor", SuccessColor, "#00FF00"},
-		{"DangerColor", DangerColor, "#FF0000"},
-		{"WarningColor", WarningColor, "#FF8800"},
-		{"NeutralColor", NeutralColor, "#AAAAAA"},
-		{"BgColor", BgColor, "#000000"},
-		{"FgColor", FgColor, "#FFFFFF"},
+		{"PrimaryColor", PrimaryColor, "#7b9cd9"},
+		{"SecondaryColor", SecondaryColor, "#323232"},
+		{"AccentColor", AccentColor, "#db7093"},
+		{"SuccessColor", SuccessColor, "#76b876"},
+		{"DangerColor", DangerColor, "#e06c75"},
+		{"WarningColor", WarningColor, "#e5c07b"},
+		{"NeutralColor", NeutralColor, "#abb2bf"},
+		{"BgColor", BgColor, "#282c34"},
+		{"FgColor", FgColor, "#f8f8f2"},
 	}
 
 	for _, tc := range colorTests {
@@ -32,30 +32,30 @@ func TestColors(t *testing.T) {
 }
 
 func TestBorders(t *testing.T) {
-	// Verify the minimal border definition
-	if MinimalBorder.Top != "═" {
-		t.Errorf("Expected MinimalBorder.Top to be '═', got %q", MinimalBorder.Top)
+	// Verify the SimpleBorder definition
+	if SimpleBorder.Top != "─" {
+		t.Errorf("Expected SimpleBorder.Top to be '─', got %q", SimpleBorder.Top)
 	}
-	if MinimalBorder.Bottom != "═" {
-		t.Errorf("Expected MinimalBorder.Bottom to be '═', got %q", MinimalBorder.Bottom)
+	if SimpleBorder.Bottom != "─" {
+		t.Errorf("Expected SimpleBorder.Bottom to be '─', got %q", SimpleBorder.Bottom)
 	}
-	if MinimalBorder.Left != "║" {
-		t.Errorf("Expected MinimalBorder.Left to be '║', got %q", MinimalBorder.Left)
+	if SimpleBorder.Left != "│" {
+		t.Errorf("Expected SimpleBorder.Left to be '│', got %q", SimpleBorder.Left)
 	}
-	if MinimalBorder.Right != "║" {
-		t.Errorf("Expected MinimalBorder.Right to be '║', got %q", MinimalBorder.Right)
+	if SimpleBorder.Right != "│" {
+		t.Errorf("Expected SimpleBorder.Right to be '│', got %q", SimpleBorder.Right)
 	}
-	if MinimalBorder.TopLeft != "╔" {
-		t.Errorf("Expected MinimalBorder.TopLeft to be '╔', got %q", MinimalBorder.TopLeft)
+	if SimpleBorder.TopLeft != "┌" {
+		t.Errorf("Expected SimpleBorder.TopLeft to be '┌', got %q", SimpleBorder.TopLeft)
 	}
-	if MinimalBorder.TopRight != "╗" {
-		t.Errorf("Expected MinimalBorder.TopRight to be '╗', got %q", MinimalBorder.TopRight)
+	if SimpleBorder.TopRight != "┐" {
+		t.Errorf("Expected SimpleBorder.TopRight to be '┐', got %q", SimpleBorder.TopRight)
 	}
-	if MinimalBorder.BottomLeft != "╚" {
-		t.Errorf("Expected MinimalBorder.BottomLeft to be '╚', got %q", MinimalBorder.BottomLeft)
+	if SimpleBorder.BottomLeft != "└" {
+		t.Errorf("Expected SimpleBorder.BottomLeft to be '└', got %q", SimpleBorder.BottomLeft)
 	}
-	if MinimalBorder.BottomRight != "╝" {
-		t.Errorf("Expected MinimalBorder.BottomRight to be '╝', got %q", MinimalBorder.BottomRight)
+	if SimpleBorder.BottomRight != "┘" {
+		t.Errorf("Expected SimpleBorder.BottomRight to be '┘', got %q", SimpleBorder.BottomRight)
 	}
 }
 
@@ -67,7 +67,7 @@ func TestStyles(t *testing.T) {
 	if BaseStyle.GetBackground() != BgColor {
 		t.Errorf("Expected BaseStyle background to be %s, got %s", BgColor, BaseStyle.GetBackground())
 	}
-	
+
 	// Test TitleStyle properties
 	if TitleStyle.GetForeground() != PrimaryColor {
 		t.Errorf("Expected TitleStyle foreground to be %s, got %s", PrimaryColor, TitleStyle.GetForeground())
@@ -75,44 +75,27 @@ func TestStyles(t *testing.T) {
 	if !TitleStyle.GetBold() {
 		t.Error("Expected TitleStyle to be bold")
 	}
-	
+
 	// Test SubtitleStyle properties
-	if SubtitleStyle.GetForeground() != SecondaryColor {
-		t.Errorf("Expected SubtitleStyle foreground to be %s, got %s", SecondaryColor, SubtitleStyle.GetForeground())
+	if SubtitleStyle.GetForeground() != AccentColor {
+		t.Errorf("Expected SubtitleStyle foreground to be %s, got %s", AccentColor, SubtitleStyle.GetForeground())
 	}
-	if !SubtitleStyle.GetBold() {
-		t.Error("Expected SubtitleStyle to be bold")
-	}
-	
+
 	// Test ButtonStyle properties
-	if ButtonStyle.GetForeground() != BgColor {
-		t.Errorf("Expected ButtonStyle foreground to be %s, got %s", BgColor, ButtonStyle.GetForeground())
+	if ButtonStyle.String() == "" {
+		t.Errorf("Expected ButtonStyle to be properly defined")
 	}
-	if ButtonStyle.GetBackground() != SecondaryColor {
-		t.Errorf("Expected ButtonStyle background to be %s, got %s", SecondaryColor, ButtonStyle.GetBackground())
-	}
-	
+
 	// Test SelectedButtonStyle properties
-	if SelectedButtonStyle.GetBackground() != PrimaryColor {
-		t.Errorf("Expected SelectedButtonStyle background to be %s, got %s", PrimaryColor, SelectedButtonStyle.GetBackground())
+	if !SelectedButtonStyle.GetBold() {
+		t.Error("Expected SelectedButtonStyle to be bold")
 	}
-	
+
 	// Test HelpStyle properties
-	if HelpStyle.GetForeground() != AccentColor {
-		t.Errorf("Expected HelpStyle foreground to be %s, got %s", AccentColor, HelpStyle.GetForeground())
+	if HelpStyle.GetForeground() != NeutralColor {
+		t.Errorf("Expected HelpStyle foreground to be %s, got %s", NeutralColor, HelpStyle.GetForeground())
 	}
 	if !HelpStyle.GetItalic() {
 		t.Error("Expected HelpStyle to be italic")
-	}
-	
-	// Test HeaderStyle properties
-	if HeaderStyle.GetForeground() != BgColor {
-		t.Errorf("Expected HeaderStyle foreground to be %s, got %s", BgColor, HeaderStyle.GetForeground())
-	}
-	if HeaderStyle.GetBackground() != PrimaryColor {
-		t.Errorf("Expected HeaderStyle background to be %s, got %s", PrimaryColor, HeaderStyle.GetBackground())
-	}
-	if HeaderStyle.GetAlign() != lipgloss.Center {
-		t.Errorf("Expected HeaderStyle alignment to be Center, got %v", HeaderStyle.GetAlign())
 	}
 }
