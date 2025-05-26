@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
 	"tax-calculator/internal/tax/bmf"
 	"tax-calculator/internal/tax/views/styles"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 // Main View - determines which screen to render
@@ -34,86 +35,86 @@ func (m *RetroApp) renderMainScreen() string {
 		Foreground(styles.PrimaryColor).
 		Padding(1, 2).
 		Render(logoText)
-	
+
 	subtitle := lipgloss.NewStyle().
 		Foreground(styles.NeutralColor).
 		Italic(true).
 		Render("German Tax Calculator")
-	
+
 	// Create the top section with clean spacing
 	topSection := lipgloss.JoinVertical(
 		lipgloss.Center,
 		header,
 		subtitle,
 	)
-	
+
 	// Tax class selector with icons - cleaner layout
 	var taxClassOptions strings.Builder
-	
+
 	// Build styled tax class options with minimal layout
 	taxClassTitle := styles.SubtitleStyle.Render("Tax Class")
-	
+
 	for _, option := range m.taxClassOptions {
 		classNum := option.Class
 		style := styles.UnselectedItemStyle
 		indicator := "  "
-		
+
 		if classNum == m.selectedTaxClass {
 			style = styles.SelectedItemStyle
 			indicator = "• "
 		}
-		
+
 		fmt.Fprintf(&taxClassOptions, "%s%s%s %s\n",
 			indicator,
 			option.Icon,
 			style.Render(fmt.Sprintf(" Class %d:", classNum)),
 			style.Render(option.Desc))
 	}
-	
+
 	// Income input field - clean styling
 	incomeTitle := styles.SubtitleStyle.Render("Annual Income")
 	incomeField := styles.InputFieldStyle.Render(m.incomeInput.View())
 	if m.focusField == IncomeField {
 		incomeField = styles.ActiveInputStyle.Render(m.incomeInput.View())
 	}
-	
+
 	// Year input field - clean styling
 	yearTitle := styles.SubtitleStyle.Render("Tax Year")
 	yearField := styles.InputFieldStyle.Render(m.yearInput.View())
 	if m.focusField == YearField {
 		yearField = styles.ActiveInputStyle.Render(m.yearInput.View())
 	}
-	
+
 	// Minimal button styling
 	calculateButton := styles.ButtonStyle.Render(" Calculate Tax ")
 	if m.focusField == CalculateButtonField {
 		calculateButton = styles.SelectedButtonStyle.Render(" Calculate Tax ")
 	}
-	
+
 	advancedButton := styles.ButtonStyle.Render(" Advanced Options ")
 	if m.focusField == AdvancedButtonField {
 		advancedButton = styles.SelectedButtonStyle.Render(" Advanced Options ")
 	}
-	
+
 	buttons := lipgloss.JoinHorizontal(
 		lipgloss.Center,
 		calculateButton,
 		"  ",
 		advancedButton,
 	)
-	
+
 	// Subtle mode indicator
 	modeText := "Remote Calculation"
 	if m.useLocalCalc {
 		modeText = "Local Calculation"
 	}
-	
+
 	modeIndicator := lipgloss.NewStyle().
 		Foreground(styles.NeutralColor).
 		Bold(true).
 		Italic(true).
 		Render(modeText)
-	
+
 	// Clean, minimal help text
 	helpText := lipgloss.JoinHorizontal(
 		lipgloss.Center,
@@ -125,7 +126,7 @@ func (m *RetroApp) renderMainScreen() string {
 		"  ",
 		formatKeyHint("L", "Toggle Local Mode"),
 	)
-	
+
 	// Main content with proper spacing
 	mainContent := lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -142,16 +143,16 @@ func (m *RetroApp) renderMainScreen() string {
 		lipgloss.JoinHorizontal(lipgloss.Center, buttons),
 		"",
 	)
-	
+
 	// Clean container styling
 	formStyle := styles.ContainerStyle
-	
+
 	// Width handling
 	width := m.windowSize.Width
 	if width == 0 {
 		width = 100
 	}
-	
+
 	// Footer with minimal styling
 	footer := lipgloss.JoinVertical(
 		lipgloss.Center,
@@ -159,7 +160,7 @@ func (m *RetroApp) renderMainScreen() string {
 		"",
 		helpText,
 	)
-	
+
 	// Combine all elements with clean spacing
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
@@ -186,55 +187,55 @@ func (m *RetroApp) renderAdvancedScreen() string {
 		Foreground(styles.NeutralColor).
 		Italic(true).
 		Render("Adjust parameters for accurate calculations")
-	
+
 	// Clean form layout
 	var formContent strings.Builder
-	
+
 	for i, field := range m.advancedFields {
 		isFocused := m.focusField == field.Field
-		
+
 		// Simplified styling
 		labelStyle := styles.SubtitleStyle
 		descStyle := lipgloss.NewStyle().
 			Foreground(styles.NeutralColor).
 			Italic(true)
-		
+
 		inputStyle := styles.InputFieldStyle
 		if isFocused {
 			inputStyle = styles.ActiveInputStyle
 		}
-		
+
 		// Render with clean spacing
 		formContent.WriteString(labelStyle.Render(field.Label))
 		formContent.WriteString("\n")
 		formContent.WriteString(descStyle.Render(field.Description))
 		formContent.WriteString("\n")
 		formContent.WriteString(inputStyle.Render(field.Model.View()))
-		
+
 		// Spacing between fields
 		if i < len(m.advancedFields)-1 {
 			formContent.WriteString("\n\n")
 		}
 	}
-	
+
 	// Minimal button styling
 	backButton := styles.ButtonStyle.Render(" Back ")
 	if m.focusField == BackButtonField {
 		backButton = styles.SelectedButtonStyle.Render(" Back ")
 	}
-	
+
 	calculateButton := styles.ButtonStyle.Render(" Calculate with Parameters ")
 	if m.focusField == CalculateButtonField {
 		calculateButton = styles.SelectedButtonStyle.Render(" Calculate with Parameters ")
 	}
-	
+
 	buttons := lipgloss.JoinHorizontal(
 		lipgloss.Center,
 		backButton,
 		"  ",
 		calculateButton,
 	)
-	
+
 	// Set content with clean layout
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -243,9 +244,9 @@ func (m *RetroApp) renderAdvancedScreen() string {
 		lipgloss.NewStyle().Align(lipgloss.Center).Render(buttons),
 		"",
 	)
-	
+
 	m.advancedViewport.SetContent(content)
-	
+
 	// Clean help text
 	helpText := lipgloss.JoinHorizontal(
 		lipgloss.Center,
@@ -255,13 +256,13 @@ func (m *RetroApp) renderAdvancedScreen() string {
 		"  ",
 		formatKeyHint("Enter", "Select"),
 	)
-	
+
 	// Width handling
 	width := m.windowSize.Width
 	if width == 0 {
 		width = 100
 	}
-	
+
 	// Clean layout with proper spacing
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
@@ -276,7 +277,7 @@ func (m *RetroApp) renderAdvancedScreen() string {
 			)),
 		"",
 		lipgloss.NewStyle().
-			Width(width - 10).
+			Width(width-10).
 			Align(lipgloss.Center).
 			Render(styles.ContainerStyle.Render(m.advancedViewport.View())),
 		"",
@@ -292,7 +293,7 @@ func (m *RetroApp) renderResultsScreen() string {
 	// Clean loading indicator
 	if m.resultsLoading {
 		spinner := m.spinner.View()
-		
+
 		loadingContent := lipgloss.JoinVertical(
 			lipgloss.Center,
 			"",
@@ -303,12 +304,12 @@ func (m *RetroApp) renderResultsScreen() string {
 			"",
 			spinner,
 		)
-		
+
 		width := m.windowSize.Width
 		if width == 0 {
 			width = 100
 		}
-		
+
 		return lipgloss.JoinVertical(
 			lipgloss.Center,
 			formatTitle("Tax Calculator"),
@@ -319,7 +320,7 @@ func (m *RetroApp) renderResultsScreen() string {
 				Render(loadingContent),
 		)
 	}
-	
+
 	// Clean error display
 	if m.resultsError != "" {
 		errorContent := lipgloss.JoinVertical(
@@ -336,12 +337,12 @@ func (m *RetroApp) renderResultsScreen() string {
 			"",
 			styles.ButtonStyle.Render(" Press Esc to go back "),
 		)
-		
+
 		width := m.windowSize.Width
 		if width == 0 {
 			width = 100
 		}
-		
+
 		return lipgloss.JoinVertical(
 			lipgloss.Center,
 			formatTitle("Tax Calculator"),
@@ -352,10 +353,10 @@ func (m *RetroApp) renderResultsScreen() string {
 				Render(errorContent),
 		)
 	}
-	
+
 	// Calculate tax values
 	income, _ := parseFloatWithDefault(m.incomeInput.Value(), 0)
-	
+
 	var incomeTax, solidarityTax float64
 	for _, output := range m.result.Outputs.Output {
 		if output.Name == "LSTLZZ" {
@@ -364,24 +365,24 @@ func (m *RetroApp) renderResultsScreen() string {
 			solidarityTax = float64(bmf.MustParseInt(output.Value)) / 100
 		}
 	}
-	
+
 	totalTax := incomeTax + solidarityTax
 	netIncome := income - totalTax
 	taxRate := 0.0
 	if income > 0 {
 		taxRate = (totalTax / income) * 100
 	}
-	
+
 	// Set tab content with clean styling
 	var tabContent string
 	switch m.activeTab {
 	case BasicTab:
 		tabContent = formatTaxResults(income, incomeTax, solidarityTax, totalTax, netIncome, taxRate)
-	
+
 	case DetailsTab:
 		// Clean detailed view
 		var details strings.Builder
-		
+
 		// Input parameters
 		details.WriteString(formatSubTitle("Input Parameters"))
 		details.WriteString("\n\n")
@@ -391,28 +392,28 @@ func (m *RetroApp) renderResultsScreen() string {
 		details.WriteString("\n")
 		details.WriteString(formatTableRow("Year:", m.yearInput.Value(), false))
 		details.WriteString("\n\n")
-		
+
 		// Advanced parameters if used
 		details.WriteString(formatSubTitle("Advanced Parameters"))
 		details.WriteString("\n\n")
-		
+
 		for _, field := range m.advancedFields {
 			details.WriteString(formatTableRow(field.Label+":", field.Model.Value(), false))
 			details.WriteString("\n")
 		}
-		
+
 		details.WriteString("\n")
 		details.WriteString(formatSubTitle("Raw Calculation Values"))
 		details.WriteString("\n\n")
-		
+
 		// Show raw output values from the BMF response
 		for _, output := range m.result.Outputs.Output {
 			details.WriteString(formatTableRow(output.Name+":", output.Value, false))
 			details.WriteString("\n")
 		}
-		
+
 		tabContent = details.String()
-		
+
 	case AboutTab:
 		// Clean about tab
 		var about strings.Builder
@@ -432,24 +433,24 @@ func (m *RetroApp) renderResultsScreen() string {
 		about.WriteString("\n\n")
 		about.WriteString("• Interface built with Bubble Tea, Bubbles, and Lip Gloss\n")
 		about.WriteString("• Tax formulas from the German Federal Ministry of Finance\n")
-		
+
 		tabContent = about.String()
 	}
-	
+
 	// Set viewport content
 	m.resultsViewport.SetContent(tabContent)
-	
+
 	// Minimal button styling
 	compareButton := styles.ButtonStyle.Render(" Compare Rates ")
 	backButton := styles.ButtonStyle.Render(" Back ")
-	
+
 	actions := lipgloss.JoinHorizontal(
 		lipgloss.Center,
 		compareButton,
 		"  ",
 		backButton,
 	)
-	
+
 	// Clean help text
 	helpText := lipgloss.JoinHorizontal(
 		lipgloss.Center,
@@ -461,20 +462,20 @@ func (m *RetroApp) renderResultsScreen() string {
 		"  ",
 		formatKeyHint("B", "Back"),
 	)
-	
+
 	// Width handling
 	width := m.windowSize.Width
 	if width == 0 {
 		width = 100
 	}
-	
+
 	// Create simple, elegant tabs
 	tabs := []string{"Basic Results", "Details", "About"}
 	renderedTabs := createTabs(tabs, int(m.activeTab), width)
-	
+
 	// Clean container styling
 	resultContainer := styles.ResultsContainerStyle.Render(m.resultsViewport.View())
-	
+
 	// Clean layout with proper spacing
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
@@ -487,7 +488,7 @@ func (m *RetroApp) renderResultsScreen() string {
 			Render(renderedTabs),
 		"",
 		lipgloss.NewStyle().
-			Width(width - 10).
+			Width(width-10).
 			Align(lipgloss.Center).
 			Render(resultContainer),
 		"",
@@ -508,7 +509,7 @@ func (m *RetroApp) renderComparisonScreen() string {
 	// Clean loading display
 	if m.comparisonLoading {
 		spinner := m.spinner.View()
-		
+
 		loadingContent := lipgloss.JoinVertical(
 			lipgloss.Center,
 			"",
@@ -523,12 +524,12 @@ func (m *RetroApp) renderComparisonScreen() string {
 				Foreground(styles.NeutralColor).
 				Render(fmt.Sprintf("Progress: %d/%d", m.completedCalls, m.totalCalls)),
 		)
-		
+
 		width := m.windowSize.Width
 		if width == 0 {
 			width = 100
 		}
-		
+
 		return lipgloss.JoinVertical(
 			lipgloss.Center,
 			formatTitle("Tax Rate Comparison"),
@@ -539,7 +540,7 @@ func (m *RetroApp) renderComparisonScreen() string {
 				Render(loadingContent),
 		)
 	}
-	
+
 	// Clean error display
 	if m.comparisonError != "" {
 		errorContent := lipgloss.JoinVertical(
@@ -556,12 +557,12 @@ func (m *RetroApp) renderComparisonScreen() string {
 			"",
 			styles.ButtonStyle.Render(" Press Esc to go back "),
 		)
-		
+
 		width := m.windowSize.Width
 		if width == 0 {
 			width = 100
 		}
-		
+
 		return lipgloss.JoinVertical(
 			lipgloss.Center,
 			formatTitle("Tax Rate Comparison"),
@@ -572,34 +573,55 @@ func (m *RetroApp) renderComparisonScreen() string {
 				Render(errorContent),
 		)
 	}
-	
+
 	// Format comparison data
 	income, _ := parseFloatWithDefault(m.incomeInput.Value(), 0)
-	comparisonContent := formatComparisonResults(m.comparisonResults, income)
-	
+	var comparisonContent string
+
+	if m.showBreakdown && len(m.comparisonResults) > 0 && m.selectedComparisonIdx < len(m.comparisonResults) {
+		// Show detailed breakdown for selected item
+		selectedResult := m.comparisonResults[m.selectedComparisonIdx]
+		comparisonContent = formatSelectedBreakdown(selectedResult)
+	} else {
+		// Show comparison list
+		comparisonContent = formatComparisonResults(m.comparisonResults, income, m.selectedComparisonIdx)
+	}
+
 	// Set content in viewport
 	m.comparisonViewport.SetContent(comparisonContent)
-	
+
 	// Minimal button styling
 	backButton := styles.ButtonStyle.Render(" Back to Results ")
-	
+
 	// Clean help text
-	helpText := lipgloss.JoinHorizontal(
-		lipgloss.Center,
-		formatKeyHint("↑/↓", "Scroll"),
-		"  ",
-		formatKeyHint("B", "Back to Results"),
-	)
-	
+	var helpText string
+	if m.showBreakdown {
+		helpText = lipgloss.JoinHorizontal(
+			lipgloss.Center,
+			formatKeyHint("Enter", "Back to List"),
+			"  ",
+			formatKeyHint("B", "Back to Results"),
+		)
+	} else {
+		helpText = lipgloss.JoinHorizontal(
+			lipgloss.Center,
+			formatKeyHint("↑/↓", "Select Item"),
+			"  ",
+			formatKeyHint("Enter", "Show Breakdown"),
+			"  ",
+			formatKeyHint("B", "Back to Results"),
+		)
+	}
+
 	// Width handling
 	width := m.windowSize.Width
 	if width == 0 {
 		width = 100
 	}
-	
+
 	// Clean container styling
 	comparisonContainer := styles.ResultsContainerStyle.Render(m.comparisonViewport.View())
-	
+
 	// Clean layout with proper spacing
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
@@ -607,7 +629,7 @@ func (m *RetroApp) renderComparisonScreen() string {
 		formatTitle("Tax Rate Comparison"),
 		"",
 		lipgloss.NewStyle().
-			Width(width - 10).
+			Width(width-10).
 			Align(lipgloss.Center).
 			Render(comparisonContainer),
 		"",

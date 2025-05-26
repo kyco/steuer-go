@@ -146,7 +146,7 @@ func parseIntWithDefault(s string, defaultVal int) (int, error) {
 }
 
 // Format tax comparison results for display
-func formatComparisonResults(results []models.TaxResult, currentIncome float64) string {
+func formatComparisonResults(results []models.TaxResult, currentIncome float64, selectedIdx int) string {
 	var sb strings.Builder
 
 	sb.WriteString("\n")
@@ -168,20 +168,30 @@ func formatComparisonResults(results []models.TaxResult, currentIncome float64) 
 	barWidth := 36
 
 	// Create rows for each result
-	for _, result := range results {
+	for i, result := range results {
 		isCurrentIncome := result.Income == currentIncome
+		isSelected := i == selectedIdx
 
 		incomeStr := formatEuro(result.Income)
 		taxStr := formatEuro(result.TotalTax)
 		rateStr := formatPercent(result.TaxRate)
 
-		bar := createProgressBar(result.TaxRate, barWidth, isCurrentIncome, rateStr, false)
+		bar := createProgressBar(result.TaxRate, barWidth, isCurrentIncome || isSelected, rateStr, false)
 
 		rowStyle := styles.BaseStyle
 		if isCurrentIncome {
 			rowStyle = styles.HighlightStyle
+		} else if isSelected {
+			rowStyle = styles.SelectedItemStyle
 		}
 
+		// Add selection indicator
+		indicator := "  "
+		if isSelected {
+			indicator = "▶ "
+		}
+
+		sb.WriteString(indicator)
 		sb.WriteString(lipgloss.JoinHorizontal(
 			lipgloss.Left,
 			rowStyle.Width(15).Render(incomeStr),
@@ -192,6 +202,8 @@ func formatComparisonResults(results []models.TaxResult, currentIncome float64) 
 
 		if isCurrentIncome {
 			sb.WriteString(" ← Your income")
+		} else if isSelected {
+			sb.WriteString(" ← Selected")
 		}
 
 		sb.WriteString("\n")
@@ -263,6 +275,81 @@ func formatTaxResults(income, incomeTax, solidarityTax, totalTax, netIncome, tax
 	monthlyIncome := income / 12
 	monthlyTax := totalTax / 12
 	monthlyNet := netIncome / 12
+
+	sb.WriteString(formatTableRow("Monthly Income:", formatEuro(monthlyIncome), false))
+	sb.WriteString("\n")
+	sb.WriteString(formatTableRow("Monthly Tax:", formatEuro(monthlyTax), false))
+	sb.WriteString("\n")
+	sb.WriteString(formatTableRow("Monthly Net:", formatEuro(monthlyNet), true))
+
+	return sb.String()
+}
+
+// Format detailed breakdown for a selected tax result
+func formatSelectedBreakdown(result models.TaxResult) string {
+	var sb strings.Builder
+
+	sb.WriteString(formatSubTitle("Detailed Breakdown"))
+	sb.WriteString("\n\n")
+
+	// Basic information
+	sb.WriteString(formatTableRow("Annual Income:", formatEuro(result.Income), false))
+	sb.WriteString("\n")
+	sb.WriteString(formatTableRow("Income Tax:", formatEuro(result.IncomeTax), false))
+	sb.WriteString("\n")
+	sb.WriteString(formatTableRow("Solidarity Tax:", formatEuro(result.SolidarityTax), false))
+	sb.WriteString("\n\n")
+
+	// Add separator
+	sb.WriteString(lipgloss.NewStyle().
+		Foreground(styles.NeutralColor).
+		Render(strings.Repeat("─", 45)))
+	sb.WriteString("\n")
+
+	// Summary
+	sb.WriteString(formatTableRow("Total Tax:", formatEuro(result.TotalTax), true))
+	sb.WriteString("\n")
+	sb.WriteString(formatTableRow("Net Income:", formatEuro(result.NetIncome), true))
+	sb.WriteString("\n")
+	sb.WriteString(formatTableRow("Effective Tax Rate:", formatPercent(result.TaxRate), true))
+	sb.WriteString("\n\n")
+
+	// Visual breakdown
+	sb.WriteString(formatSubTitle("Tax Breakdown"))
+	sb.WriteString("\n\n")
+
+	if result.Income > 0 {
+		incomeTaxPercent := (result.IncomeTax / result.Income) * 100
+		solidarityTaxPercent := (result.SolidarityTax / result.Income) * 100
+		netIncomePercent := (result.NetIncome / result.Income) * 100
+
+		barWidth := 40
+
+		breakdownRow := func(label, value string, percent float64, highlight bool) string {
+			return lipgloss.JoinHorizontal(
+				lipgloss.Left,
+				styles.BaseStyle.Width(16).Render(label),
+				styles.BaseStyle.Width(7).Align(lipgloss.Right).Render(value),
+				styles.BaseStyle.Width(2).Render(""),
+				createProgressBar(percent, barWidth, highlight, "", false),
+			)
+		}
+
+		sb.WriteString(breakdownRow("Income Tax:", formatPercent(incomeTaxPercent), incomeTaxPercent, false))
+		sb.WriteString("\n\n")
+		sb.WriteString(breakdownRow("Solidarity:", formatPercent(solidarityTaxPercent), solidarityTaxPercent, false))
+		sb.WriteString("\n\n")
+		sb.WriteString(breakdownRow("Net Income:", formatPercent(netIncomePercent), netIncomePercent, true))
+		sb.WriteString("\n\n")
+	}
+
+	// Monthly breakdown
+	sb.WriteString(formatSubTitle("Monthly Breakdown"))
+	sb.WriteString("\n\n")
+
+	monthlyIncome := result.Income / 12
+	monthlyTax := result.TotalTax / 12
+	monthlyNet := result.NetIncome / 12
 
 	sb.WriteString(formatTableRow("Monthly Income:", formatEuro(monthlyIncome), false))
 	sb.WriteString("\n")

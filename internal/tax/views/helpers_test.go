@@ -209,7 +209,7 @@ func TestFormatComparisonResults(t *testing.T) {
 	}
 
 	// Test with current income matching a result
-	result := formatComparisonResults(results, 50000.0)
+	result := formatComparisonResults(results, 50000.0, 1)
 	if result == "" {
 		t.Error("formatComparisonResults returned empty string")
 	}

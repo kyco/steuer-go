@@ -25,14 +25,14 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Check if any input is currently focused
 	var inputFocused bool
-	
+
 	// Main screen input fields
 	if m.screen == MainScreen {
 		if m.incomeInput.Focused() || m.yearInput.Focused() {
 			inputFocused = true
 		}
 	}
-	
+
 	// Advanced screen input fields
 	if m.screen == AdvancedScreen {
 		for _, field := range m.advancedFields {
@@ -42,7 +42,7 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
-	
+
 	// Handle special key events when an input is focused
 	if inputFocused {
 		// Special case for Escape key to blur input
@@ -94,7 +94,7 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch keyMsg.String() {
 			case "ctrl+c", "q":
 				return m, tea.Quit
-	
+
 			case "esc":
 				switch m.screen {
 				case ResultsScreen, ComparisonScreen, AdvancedScreen:
@@ -102,30 +102,30 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				default:
 					return m, tea.Quit
 				}
-	
+
 			case "tab", "shift+tab":
 				// Handle tab navigation across fields
 				m.handleTabNavigation(keyMsg.String() == "shift+tab")
-	
+
 			case "up", "down":
 				// Handle up/down navigation
 				m.handleUpDownNavigation(keyMsg.String() == "up")
-	
+
 			case "left", "right":
 				// Handle left/right navigation
 				m.handleLeftRightNavigation(keyMsg.String() == "left")
-	
+
 			case "enter":
 				// Handle enter key selection
 				cmd := m.handleEnterSelection()
 				if cmd != nil {
 					cmds = append(cmds, cmd)
 				}
-	
+
 			case "l":
 				// Toggle local calculation
 				m.useLocalCalc = !m.useLocalCalc
-	
+
 			case "c":
 				// Start comparison mode from results screen
 				if m.screen == ResultsScreen {
@@ -133,7 +133,7 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.comparisonLoading = true
 					cmds = append(cmds, m.startComparisonCmd())
 				}
-	
+
 			case "b":
 				// Go back from comparison to results
 				if m.screen == ComparisonScreen {
@@ -141,7 +141,7 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else if m.screen == ResultsScreen {
 					m.screen = MainScreen
 				}
-	
+
 			case "d":
 				// Toggle details in results
 				if m.screen == ResultsScreen {
@@ -173,7 +173,7 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case CalculationMsg:
 		// When calculation completes
 		m.resultsLoading = false
-		
+
 		if msgType.Error != nil {
 			m.resultsError = msgType.Error.Error()
 		} else {
@@ -184,6 +184,8 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ComparisonStartedMsg:
 		// When comparison starts
 		m.comparisonLoading = true
+		m.selectedComparisonIdx = 0
+		m.showBreakdown = false
 		m.completedCalls = 0
 		m.totalCalls = 0
 
@@ -195,7 +197,7 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ComparisonMsg:
 		// When comparison completes
 		m.comparisonLoading = false
-		
+
 		if msgType.Error != nil {
 			m.comparisonError = msgType.Error.Error()
 		} else {
@@ -213,12 +215,12 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		newViewport, cmd := m.resultsViewport.Update(msg)
 		m.resultsViewport = newViewport
 		cmds = append(cmds, cmd)
-	
+
 	case ComparisonScreen:
 		newViewport, cmd := m.comparisonViewport.Update(msg)
 		m.comparisonViewport = newViewport
 		cmds = append(cmds, cmd)
-	
+
 	case AdvancedScreen:
 		newViewport, cmd := m.advancedViewport.Update(msg)
 		m.advancedViewport = newViewport
@@ -233,7 +235,7 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if incomeCmd != nil {
 			cmds = append(cmds, incomeCmd)
 		}
-		
+
 		// Always update year field
 		newYearInput, yearCmd := m.yearInput.Update(msg)
 		m.yearInput = newYearInput
@@ -241,7 +243,7 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, yearCmd)
 		}
 	}
-	
+
 	// Always update all advanced fields
 	if m.screen == AdvancedScreen {
 		for i, field := range m.advancedFields {
@@ -330,10 +332,18 @@ func (m *RetroApp) handleUpDownNavigation(isUp bool) {
 		}
 
 	case ComparisonScreen:
-		if isUp {
-			m.comparisonViewport.LineUp(1)
-		} else {
-			m.comparisonViewport.LineDown(1)
+		if len(m.comparisonResults) > 0 {
+			if isUp {
+				m.selectedComparisonIdx--
+				if m.selectedComparisonIdx < 0 {
+					m.selectedComparisonIdx = len(m.comparisonResults) - 1
+				}
+			} else {
+				m.selectedComparisonIdx++
+				if m.selectedComparisonIdx >= len(m.comparisonResults) {
+					m.selectedComparisonIdx = 0
+				}
+			}
 		}
 
 	case AdvancedScreen:
@@ -393,13 +403,18 @@ func (m *RetroApp) handleEnterSelection() tea.Cmd {
 				return textinput.Blink
 			}
 		}
-		
+
 		switch m.focusField {
 		case BackButtonField:
 			m.screen = MainScreen
 			m.focusField = TaxClassField
 		case CalculateButtonField:
 			return m.startAdvancedCalculationCmd()
+		}
+
+	case ComparisonScreen:
+		if len(m.comparisonResults) > 0 {
+			m.showBreakdown = !m.showBreakdown
 		}
 	}
 
@@ -408,23 +423,23 @@ func (m *RetroApp) handleEnterSelection() tea.Cmd {
 
 // Update viewport dimensions when window size changes
 func (m *RetroApp) updateViewportDimensions(msg tea.WindowSizeMsg) {
-	width := msg.Width - 20 // margin for borders
+	width := msg.Width - 20   // margin for borders
 	height := msg.Height - 20 // margin for header/footer
-	
+
 	if width < 20 {
 		width = 20
 	}
-	
+
 	if height < 10 {
 		height = 10
 	}
-	
+
 	m.resultsViewport.Width = width
 	m.resultsViewport.Height = height
-	
+
 	m.comparisonViewport.Width = width
 	m.comparisonViewport.Height = height
-	
+
 	m.advancedViewport.Width = width
 	m.advancedViewport.Height = height
 }

@@ -16,6 +16,8 @@ With its clean, minimalist terminal interface (powered by Bubble Tea), SteuerGo 
 - View detailed tax breakdowns including income tax and solidarity tax
 - See monthly and annual calculations side-by-side
 - Visualize the proportion of taxes to net income
+- Interactively compare tax rates across different income levels
+- Get detailed analysis for any income amount with keyboard navigation
 
 ## Features
 
@@ -26,7 +28,9 @@ With its clean, minimalist terminal interface (powered by Bubble Tea), SteuerGo 
 - 🧮 Offline calculation mode with local implementation of tax formula
 - 📝 Detailed tax information on demand
 - 📅 Support for recent tax years
-- 📊 Comparative tax analysis across income levels
+- 📊 Interactive tax rate comparison with selectable income levels
+- 🎯 Detailed breakdown view for any selected income amount
+- ⌨️ Full keyboard navigation with intuitive controls
 
 ## Installation
 
@@ -86,6 +90,21 @@ In the results screen:
 - Press 'l' to toggle between online (API) and offline (local) calculation modes
 - Press 'b' or 'Esc' to return to the input form
 - Use arrow keys to scroll through results if needed
+
+### Interactive Tax Comparison
+
+When in comparison mode (press 'c' from results):
+- Use **↑/↓ arrow keys** to navigate and select different income levels
+- Press **Enter** to view a detailed tax breakdown for the selected income
+- Selected items are highlighted with a **▶** indicator
+- Press **Enter** again to return to the comparison list
+- Press **B** to go back to results or **Esc** to return to main screen
+
+This feature allows you to:
+- Compare tax rates across multiple income levels at once
+- See detailed breakdowns for any income amount of interest
+- Understand how tax obligations change with different income levels
+- Visualize tax rate progression with intuitive progress bars
 
 ## Screenshots
 
