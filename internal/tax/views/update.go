@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"tax-calculator/internal/tax/calculation"
@@ -45,48 +44,42 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle special key events when an input is focused
 	if inputFocused {
-		// Special case for Escape key to blur input
-		if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.String() == "esc" {
-			// Blur any focused input fields
-			if m.screen == MainScreen {
-				if m.incomeInput.Focused() {
-					m.incomeInput.Blur()
-				}
-				if m.yearInput.Focused() {
-					m.yearInput.Blur()
-				}
-			} else if m.screen == AdvancedScreen {
-				for i, field := range m.advancedFields {
-					if field.Model.Focused() {
-						newModel := field.Model
-						newModel.Blur()
-						m.advancedFields[i].Model = newModel
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			switch keyMsg.String() {
+			case "esc":
+				// Blur any focused input fields
+				if m.screen == MainScreen {
+					if m.incomeInput.Focused() {
+						m.incomeInput.Blur()
+					}
+					if m.yearInput.Focused() {
+						m.yearInput.Blur()
+					}
+				} else if m.screen == AdvancedScreen {
+					for i, field := range m.advancedFields {
+						if field.Model.Focused() {
+							newModel := field.Model
+							newModel.Blur()
+							m.advancedFields[i].Model = newModel
+						}
 					}
 				}
+
+			case "tab", "shift+tab":
+				// Handle tab navigation even when input is focused
+				m.handleTabNavigation(keyMsg.String() == "shift+tab")
+
+			case "enter":
+				// Handle enter key selection even when input is focused
+				cmd := m.handleEnterSelection()
+				if cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+
+			default:
+				// Regular input handling when focused
+				// Will be handled by the input update section below
 			}
-			// Continue processing the update
-		} else if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.String() == "enter" {
-			// Blur any focused input fields on Enter
-			if m.screen == MainScreen {
-				if m.incomeInput.Focused() {
-					m.incomeInput.Blur()
-				}
-				if m.yearInput.Focused() {
-					m.yearInput.Blur()
-				}
-			} else if m.screen == AdvancedScreen {
-				for i, field := range m.advancedFields {
-					if field.Model.Focused() {
-						newModel := field.Model
-						newModel.Blur()
-						m.advancedFields[i].Model = newModel
-					}
-				}
-			}
-			// Continue processing the update
-		} else {
-			// Regular input handling when focused
-			// Will be handled by the input update section below
 		}
 	} else {
 		// Regular key handling when no input is focused
@@ -258,6 +251,51 @@ func (m *RetroApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// Helper to blur all input fields
+func (m *RetroApp) blurAllInputs() {
+	if m.screen == MainScreen {
+		if m.incomeInput.Focused() {
+			m.incomeInput.Blur()
+		}
+		if m.yearInput.Focused() {
+			m.yearInput.Blur()
+		}
+	} else if m.screen == AdvancedScreen {
+		for i, field := range m.advancedFields {
+			if field.Model.Focused() {
+				newModel := field.Model
+				newModel.Blur()
+				m.advancedFields[i].Model = newModel
+			}
+		}
+	}
+}
+
+// Helper to auto-focus input fields when navigated to
+func (m *RetroApp) autoFocusInputField() {
+	// First blur all inputs
+	m.blurAllInputs()
+
+	// Then focus the current field if it's an input field
+	if m.screen == MainScreen {
+		switch m.focusField {
+		case IncomeField:
+			m.incomeInput.Focus()
+		case YearField:
+			m.yearInput.Focus()
+		}
+	} else if m.screen == AdvancedScreen {
+		for i, field := range m.advancedFields {
+			if field.Field == m.focusField {
+				newModel := field.Model
+				newModel.Focus()
+				m.advancedFields[i].Model = newModel
+				break
+			}
+		}
+	}
+}
+
 // Handle tab navigation across input fields
 func (m *RetroApp) handleTabNavigation(isBackward bool) {
 	switch m.screen {
@@ -287,22 +325,23 @@ func (m *RetroApp) navigateFields(fields []Field, isBackward bool) {
 
 	if currentIdx == -1 {
 		m.focusField = fields[0]
-		return
-	}
-
-	if isBackward {
-		currentIdx--
-		if currentIdx < 0 {
-			currentIdx = len(fields) - 1
-		}
 	} else {
-		currentIdx++
-		if currentIdx >= len(fields) {
-			currentIdx = 0
+		if isBackward {
+			currentIdx--
+			if currentIdx < 0 {
+				currentIdx = len(fields) - 1
+			}
+		} else {
+			currentIdx++
+			if currentIdx >= len(fields) {
+				currentIdx = 0
+			}
 		}
+		m.focusField = fields[currentIdx]
 	}
 
-	m.focusField = fields[currentIdx]
+	// Focus input fields when navigated to (but don't blur others)
+	m.autoFocusInputField()
 }
 
 // Handle up/down navigation
@@ -378,38 +417,45 @@ func (m *RetroApp) handleEnterSelection() tea.Cmd {
 	case MainScreen:
 		switch m.focusField {
 		case IncomeField:
-			// Focus the income input field
-			m.incomeInput.Focus()
-			return textinput.Blink
+			// Move to next field (Year)
+			m.focusField = YearField
+			m.autoFocusInputField()
 		case YearField:
-			// Focus the year input field
-			m.yearInput.Focus()
-			return textinput.Blink
+			// Move to Calculate button
+			m.focusField = CalculateButtonField
 		case CalculateButtonField:
 			return m.startCalculationCmd()
 		case AdvancedButtonField:
 			m.screen = AdvancedScreen
 			m.focusField = AJAHR_Field
+			m.autoFocusInputField()
 		}
 
 	case AdvancedScreen:
 		// Handle advanced field selection
+		isAdvancedField := false
 		for i, field := range m.advancedFields {
 			if field.Field == m.focusField {
-				// Focus this input field
-				newModel := field.Model
-				newModel.Focus()
-				m.advancedFields[i].Model = newModel
-				return textinput.Blink
+				// Move to next field or Calculate button
+				if i < len(m.advancedFields)-1 {
+					m.focusField = m.advancedFields[i+1].Field
+					m.autoFocusInputField()
+				} else {
+					m.focusField = CalculateButtonField
+				}
+				isAdvancedField = true
+				break
 			}
 		}
 
-		switch m.focusField {
-		case BackButtonField:
-			m.screen = MainScreen
-			m.focusField = TaxClassField
-		case CalculateButtonField:
-			return m.startAdvancedCalculationCmd()
+		if !isAdvancedField {
+			switch m.focusField {
+			case BackButtonField:
+				m.screen = MainScreen
+				m.focusField = TaxClassField
+			case CalculateButtonField:
+				return m.startAdvancedCalculationCmd()
+			}
 		}
 
 	case ComparisonScreen:

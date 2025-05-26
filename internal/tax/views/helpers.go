@@ -90,11 +90,15 @@ func formatTableRow(label string, value string, highlight bool) string {
 		valueStyle = styles.BaseStyle
 	}
 
-	// Always align colon at the same position, and right-align value
+	// Use more precise widths and account for unicode characters
+	// Label width includes the colon, value is right-aligned
+	labelWidth := 22 // Increased to accommodate longer labels
+	valueWidth := 16 // Increased to accommodate Euro symbol properly
+
 	return lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		labelStyle.Width(20).Render(label),
-		valueStyle.Width(14).Align(lipgloss.Right).Render(value),
+		labelStyle.Width(labelWidth).Render(label),
+		valueStyle.Width(valueWidth).Align(lipgloss.Right).Render(value),
 	)
 }
 
@@ -251,8 +255,8 @@ func formatTaxResults(income, incomeTax, solidarityTax, totalTax, netIncome, tax
 	breakdownRow := func(label, value string, percent float64, highlight bool) string {
 		return lipgloss.JoinHorizontal(
 			lipgloss.Left,
-			styles.BaseStyle.Width(16).Render(label),
-			styles.BaseStyle.Width(7).Align(lipgloss.Right).Render(value),
+			styles.BaseStyle.Width(18).Render(label),
+			styles.BaseStyle.Width(9).Align(lipgloss.Right).Render(value),
 			styles.BaseStyle.Width(2).Render(""), // Spacer column
 			createProgressBar(percent, barWidth, highlight, "", false),
 		)
@@ -280,7 +284,7 @@ func formatTaxResults(income, incomeTax, solidarityTax, totalTax, netIncome, tax
 	sb.WriteString("\n")
 	sb.WriteString(formatTableRow("Monthly Tax:", formatEuro(monthlyTax), false))
 	sb.WriteString("\n")
-	sb.WriteString(formatTableRow("Monthly Net:", formatEuro(monthlyNet), true))
+	sb.WriteString(formatTableRow("Monthly Net:", formatEuro(monthlyNet), false))
 
 	return sb.String()
 }
@@ -328,8 +332,8 @@ func formatSelectedBreakdown(result models.TaxResult) string {
 		breakdownRow := func(label, value string, percent float64, highlight bool) string {
 			return lipgloss.JoinHorizontal(
 				lipgloss.Left,
-				styles.BaseStyle.Width(16).Render(label),
-				styles.BaseStyle.Width(7).Align(lipgloss.Right).Render(value),
+				styles.BaseStyle.Width(18).Render(label),
+				styles.BaseStyle.Width(9).Align(lipgloss.Right).Render(value),
 				styles.BaseStyle.Width(2).Render(""),
 				createProgressBar(percent, barWidth, highlight, "", false),
 			)
@@ -355,7 +359,7 @@ func formatSelectedBreakdown(result models.TaxResult) string {
 	sb.WriteString("\n")
 	sb.WriteString(formatTableRow("Monthly Tax:", formatEuro(monthlyTax), false))
 	sb.WriteString("\n")
-	sb.WriteString(formatTableRow("Monthly Net:", formatEuro(monthlyNet), true))
+	sb.WriteString(formatTableRow("Monthly Net:", formatEuro(monthlyNet), false))
 
 	return sb.String()
 }
