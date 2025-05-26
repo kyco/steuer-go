@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"tax-calculator/internal/ui"
+	"tax-calculator/internal/main/views"
 )
 
 func main() {
-	if err := ui.Start(); err != nil {
+	if err := views.Start(); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
