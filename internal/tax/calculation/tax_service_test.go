@@ -60,6 +60,37 @@ func TestNewTaxService(t *testing.T) {
 	}
 }
 
+func TestEnableLocalCalculator(t *testing.T) {
+	service := NewTaxService()
+
+	// Initially should be disabled
+	if service.useLocalCalculator {
+		t.Error("Expected useLocalCalculator to be false initially")
+	}
+
+	service.EnableLocalCalculator()
+
+	if !service.useLocalCalculator {
+		t.Error("Expected useLocalCalculator to be true after EnableLocalCalculator")
+	}
+}
+
+func TestDisableLocalCalculator(t *testing.T) {
+	service := NewTaxService()
+
+	// Enable first
+	service.EnableLocalCalculator()
+	if !service.useLocalCalculator {
+		t.Error("Expected useLocalCalculator to be true after EnableLocalCalculator")
+	}
+
+	service.DisableLocalCalculator()
+
+	if service.useLocalCalculator {
+		t.Error("Expected useLocalCalculator to be false after DisableLocalCalculator")
+	}
+}
+
 func TestGetTaxSummary(t *testing.T) {
 	service := NewTaxService()
 	tests := []struct {

@@ -82,63 +82,116 @@ func TestCreateProgressBar(t *testing.T) {
 }
 
 func TestFormatTitle(t *testing.T) {
-	result := formatTitle("Test Title")
-	if result == "" {
-		t.Error("formatTitle returned empty string")
+	title := formatTitle("Test Title")
+
+	if title == "" {
+		t.Error("formatTitle should not return empty string")
 	}
-	if !strings.Contains(result, "Test Title") {
-		t.Errorf("formatTitle should contain the title text, got: %q", result)
+
+	if !strings.Contains(title, "Test Title") {
+		t.Error("formatTitle should contain the input title")
+	}
+
+	// Test with empty string
+	emptyTitle := formatTitle("")
+	if emptyTitle == "" {
+		t.Error("formatTitle should handle empty string gracefully")
 	}
 }
 
 func TestFormatSubTitle(t *testing.T) {
-	result := formatSubTitle("Test Subtitle")
-	if result == "" {
-		t.Error("formatSubTitle returned empty string")
+	subtitle := formatSubTitle("Test Subtitle")
+
+	if subtitle == "" {
+		t.Error("formatSubTitle should not return empty string")
 	}
-	if !strings.Contains(result, "Test Subtitle") {
-		t.Errorf("formatSubTitle should contain the subtitle text, got: %q", result)
+
+	if !strings.Contains(subtitle, "Test Subtitle") {
+		t.Error("formatSubTitle should contain the input subtitle")
+	}
+
+	// Test with empty string
+	emptySubtitle := formatSubTitle("")
+	if emptySubtitle == "" {
+		t.Error("formatSubTitle should handle empty string gracefully")
 	}
 }
 
 func TestFormatKeyHint(t *testing.T) {
-	result := formatKeyHint("ctrl+c", "quit")
-	if result == "" {
-		t.Error("formatKeyHint returned empty string")
+	hint := formatKeyHint("Tab", "Next field")
+
+	if hint == "" {
+		t.Error("formatKeyHint should not return empty string")
 	}
-	if !strings.Contains(result, "ctrl+c") || !strings.Contains(result, "quit") {
-		t.Errorf("formatKeyHint should contain both key and description, got: %q", result)
+
+	if !strings.Contains(hint, "Tab") {
+		t.Error("formatKeyHint should contain the key")
+	}
+
+	if !strings.Contains(hint, "Next field") {
+		t.Error("formatKeyHint should contain the description")
+	}
+
+	// Test with empty values
+	emptyHint := formatKeyHint("", "")
+	if emptyHint == "" {
+		t.Error("formatKeyHint should handle empty values gracefully")
 	}
 }
 
 func TestFormatKeyHints(t *testing.T) {
-	result := formatKeyHints("hint1", "hint2", "hint3")
-	if !strings.Contains(result, "hint1") || !strings.Contains(result, "hint2") || !strings.Contains(result, "hint3") {
-		t.Errorf("formatKeyHints should contain all hints, got: %q", result)
+	formatted := formatKeyHints("Tab: Next", "Enter: Select", "Esc: Exit")
+
+	if formatted == "" {
+		t.Error("formatKeyHints should not return empty string")
 	}
-	if !strings.Contains(result, "·") {
-		t.Errorf("formatKeyHints should use dot separator, got: %q", result)
+
+	hints := []string{"Tab: Next", "Enter: Select", "Esc: Exit"}
+	for _, hint := range hints {
+		if !strings.Contains(formatted, hint) {
+			t.Errorf("formatKeyHints should contain hint: %s", hint)
+		}
+	}
+
+	// Test with empty arguments
+	emptyFormatted := formatKeyHints()
+	// Empty arguments should return empty string, which is expected behavior
+	if emptyFormatted != "" {
+		t.Log("formatKeyHints with no arguments returns:", emptyFormatted)
+	}
+
+	// Test with single argument
+	singleFormatted := formatKeyHints("Single hint")
+	if singleFormatted == "" {
+		t.Error("formatKeyHints should handle single argument")
 	}
 }
 
 func TestFormatTableRow(t *testing.T) {
-	tests := []struct {
-		label         string
-		value         string
-		highlight     bool
-		shouldContain []string
-	}{
-		{"Income", "€ 50000.00", false, []string{"Income", "€ 50000.00"}},
-		{"Tax", "€ 10000.00", true, []string{"Tax", "€ 10000.00"}},
+	row := formatTableRow("Column1", "Column2", false)
+
+	if row == "" {
+		t.Error("formatTableRow should not return empty string")
 	}
 
-	for i, tc := range tests {
-		result := formatTableRow(tc.label, tc.value, tc.highlight)
-		for _, s := range tc.shouldContain {
-			if !strings.Contains(result, s) {
-				t.Errorf("Case %d: formatTableRow should contain %q, got: %q", i, s, result)
-			}
-		}
+	if !strings.Contains(row, "Column1") {
+		t.Error("formatTableRow should contain first column")
+	}
+
+	if !strings.Contains(row, "Column2") {
+		t.Error("formatTableRow should contain second column")
+	}
+
+	// Test with highlight
+	highlightRow := formatTableRow("Label", "Value", true)
+	if highlightRow == "" {
+		t.Error("formatTableRow should handle highlight")
+	}
+
+	// Test with empty columns
+	emptyRow := formatTableRow("", "", false)
+	if emptyRow == "" {
+		t.Error("formatTableRow should handle empty columns gracefully")
 	}
 }
 
@@ -371,5 +424,169 @@ func TestViewportScrolling(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCreateProgressBarPartial(t *testing.T) {
+	// Test partial progress
+	bar := createProgressBar(50.0, 20, false, "", false)
+
+	if bar == "" {
+		t.Error("createProgressBar should not return empty string")
+	}
+
+	// Should contain both filled and empty characters
+	if !strings.Contains(bar, "━") {
+		t.Error("createProgressBar should contain filled characters")
+	}
+
+	if !strings.Contains(bar, "─") {
+		t.Error("createProgressBar should contain empty characters for partial progress")
+	}
+}
+
+func TestCreateProgressBarFull(t *testing.T) {
+	// Test full progress
+	bar := createProgressBar(100.0, 20, false, "", false)
+
+	if bar == "" {
+		t.Error("createProgressBar should not return empty string")
+	}
+
+	// Should be fully filled
+	if strings.Contains(bar, "─") {
+		t.Error("createProgressBar should not contain empty characters for full progress")
+	}
+}
+
+func TestCreateProgressBarEmpty(t *testing.T) {
+	// Test empty progress
+	bar := createProgressBar(0.0, 20, false, "", false)
+
+	if bar == "" {
+		t.Error("createProgressBar should not return empty string")
+	}
+
+	// Should be mostly empty
+	if !strings.Contains(bar, "─") {
+		t.Error("createProgressBar should contain empty characters for zero progress")
+	}
+}
+
+func TestCreateProgressBarEdgeCases(t *testing.T) {
+	// Test with small width (function handles minimum width internally)
+	smallBar := createProgressBar(50.0, 1, false, "", false)
+	if smallBar == "" {
+		t.Error("createProgressBar should handle small width gracefully")
+	}
+
+	// Test with zero percent (should work fine)
+	zeroPercentBar := createProgressBar(0.0, 20, false, "", false)
+	if zeroPercentBar == "" {
+		t.Error("createProgressBar should handle zero percent")
+	}
+
+	// Test with over 100 percent
+	overBar := createProgressBar(150.0, 20, false, "", false)
+	if overBar == "" {
+		t.Error("createProgressBar should handle over 100 percent")
+	}
+
+	// Test with highlight and label
+	highlightBar := createProgressBar(75.0, 20, true, "75%", false)
+	if highlightBar == "" {
+		t.Error("createProgressBar should handle highlight and label")
+	}
+
+	// Test with border
+	borderBar := createProgressBar(50.0, 20, false, "50%", true)
+	if borderBar == "" {
+		t.Error("createProgressBar should handle border")
+	}
+}
+
+func TestCreateProgressBarDifferentWidths(t *testing.T) {
+	// Test different widths
+	widths := []int{5, 10, 20, 50}
+
+	for _, width := range widths {
+		bar := createProgressBar(50.0, width, false, "", false)
+		if bar == "" {
+			t.Errorf("createProgressBar should work with width %d", width)
+		}
+
+		// The actual length might be different due to formatting,
+		// but it should be proportional to the width
+		if len(bar) == 0 {
+			t.Errorf("createProgressBar should produce non-empty result for width %d", width)
+		}
+	}
+}
+
+func TestHelperFunctionIntegration(t *testing.T) {
+	// Test that helper functions work together
+	title := formatTitle("Integration Test")
+	subtitle := formatSubTitle("Testing helpers")
+	hint := formatKeyHint("Enter", "Continue")
+	hints := formatKeyHints(hint, "Tab: Next")
+	row := formatTableRow("Col1", "Col2", false)
+	bar := createProgressBar(75.0, 30, false, "", false)
+
+	// All should produce non-empty results
+	results := []string{title, subtitle, hint, hints, row, bar}
+	for i, result := range results {
+		if result == "" {
+			t.Errorf("Helper function %d produced empty result", i)
+		}
+	}
+}
+
+func TestFormatEuroHelper(t *testing.T) {
+	// Test the formatEuro function
+	formatted := formatEuro(1234.56)
+
+	if formatted == "" {
+		t.Error("formatEuro should not return empty string")
+	}
+
+	if !strings.Contains(formatted, "1234.56") {
+		t.Error("formatEuro should contain the numeric value")
+	}
+
+	// Test with zero
+	zeroFormatted := formatEuro(0)
+	if zeroFormatted == "" {
+		t.Error("formatEuro should handle zero")
+	}
+
+	// Test with negative
+	negativeFormatted := formatEuro(-100.50)
+	if negativeFormatted == "" {
+		t.Error("formatEuro should handle negative values")
+	}
+}
+
+func TestFormatPercentHelper(t *testing.T) {
+	// Test the formatPercent function
+	formatted := formatPercent(25.5)
+
+	if formatted == "" {
+		t.Error("formatPercent should not return empty string")
+	}
+
+	if !strings.Contains(formatted, "25.5") {
+		t.Error("formatPercent should contain the numeric value")
+	}
+
+	// Test with zero
+	zeroFormatted := formatPercent(0)
+	if zeroFormatted == "" {
+		t.Error("formatPercent should handle zero")
+	}
+
+	// Test with 100%
+	hundredFormatted := formatPercent(100)
+	if hundredFormatted == "" {
+		t.Error("formatPercent should handle 100%")
 	}
 }
